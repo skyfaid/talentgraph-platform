@@ -1,48 +1,54 @@
-# 🧠 TALENTGRAPH — Model Development Branch
+# 🚀 AI-Powered CV Ranking System - Hybrid RAG + LLM
 
-This branch contains the core **machine learning model development** for the TALENTGRAPH platform.  
-The goal is to train and evaluate AI models that can **analyze resumes, extract skills, and rank candidates** based on their fit for specific job roles.
+An advanced, universal CV ranking system that combines Retrieval-Augmented Generation (RAG) with Large Language Models (LLM) to intelligently rank resumes across all job categories.
 
----
+## 🌟 Key Features
 
-## 🎯 Objective
+✅ **Universal Job Support** - Works for ALL job categories (tech, marketing, healthcare, finance, etc.)  
+✅ **Hybrid RAG + LLM Architecture** - Combines vector search with intelligent LLM analysis  
+✅ **Role-Based Prompting** - LLM acts as HR expert with few-shot examples  
+✅ **Multi-Dataset Support** - Processes and combines multiple resume datasets  
+✅ **Intelligent Text Cleaning** - Advanced NLP preprocessing for optimal analysis  
+✅ **Hybrid Scoring** - 40% vector similarity + 60% LLM analysis for balanced ranking  
 
-To develop and fine-tune the **CV Ranking Model**, the central engine behind TALENTGRAPH’s candidate-job matching pipeline.
+## 🏗️ System Architecture
 
-The model:
-- Uses NLP to understand resumes and job descriptions
-- Builds vector embeddings using pretrained transformer models
-- Computes semantic similarity between candidates and roles
-- Produces ranked candidate lists per job
+### Frameworks & Technologies
+- **LangChain**: Orchestration, chains, prompts, and vectorstore integration
+- **Sentence-Transformers**: Embedding generation using `all-MiniLM-L6-v2`
+- **ChromaDB**: Persistent vector storage
+- **Groq Cloud**: LLM inference via `llama-4.1-17b-instant`
+- **NLTK**: Text preprocessing and cleaning
 
----
+### RAG Pipeline
+1. **Retrieval Phase** - Semantic search using resume embeddings
+2. **Augmentation Phase** - LLM enrichment for skills, experience, education extraction
+3. **Generation Phase** - Hybrid scoring and final ranking with explanations
 
-## 🧩 Notebook: `cv_ranker_notebook.ipynb`
+## 📊 Dataset Information
 
-This Jupyter notebook contains:
-- Data loading and preprocessing steps  
-- Text cleaning and normalization for resumes/jobs  
-- Embedding generation using transformer-based models (e.g. `Sentence-BERT`)  
-- Similarity computation and ranking logic  
-- Evaluation metrics and model performance visualization  
+The system processes and combines two major resume datasets:
+- **Resume.csv**: 2,484 resumes across multiple categories
+- **UpdatedResumeDataSet.csv**: 962 professionally labeled resumes
 
----
+**Total Processed**: 2,645 cleaned English resumes across 48 unique job categories
 
-## 🧠 Techniques & Libraries
+### Top Categories
+- HR, Information Technology, Business Development
+- Advocate, Chef, Engineering, Accountant
+- Fitness, Finance, Aviation
 
-- **Transformers / Sentence-BERT** for semantic embeddings  
-- **scikit-learn** for evaluation and vector operations  
-- **pandas / numpy** for data handling  
-- **tqdm / matplotlib** for progress and visualization  
+## 🛠️ Installation & Setup
 
----
+### Prerequisites
+- Python 3.8+
+- Groq API key
 
-## ⚙️ Setup
-
+### Installation
 ```bash
-# Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate   # or venv\Scripts\activate on Windows
+# Clone the repository
+git clone https://github.com/your-username/cv-ranker.git
+cd cv-ranker
 
-# Install dependencies
+# Install required packages
 pip install -r requirements.txt
