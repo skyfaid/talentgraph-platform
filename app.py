@@ -24,7 +24,19 @@ from src.api import (
     ScoreBreakdown,
     SHAPAnalysis,
     LIMEAnalysis,
-    get_service
+    get_service,
+    InterviewStartRequest,
+    InterviewStartResponse,
+    QuestionResponse,
+    SubmitAnswerRequest,
+    AnswerEvaluationResponse,
+    InterviewStatusResponse,
+    InterviewReportResponse
+)
+from src.interview import (
+    get_question_generator,
+    get_answer_evaluator,
+    get_session_manager
 )
 from src.xai import RankingExplainer
 from src.pdf import extract_text_from_multiple_pdfs
@@ -556,6 +568,248 @@ async def upload_pdf_cvs(files: List[UploadFile] = File(...)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing PDFs: {str(e)}"
         )
+
+
+# ========== INTERVIEW ENDPOINTS ==========
+
+@app.post("/interview/start", response_model=InterviewStartResponse, tags=["Interview"])
+async def start_interview(request: InterviewStartRequest):
+    """
+    Start a new interview session.
+    
+    Creates a new interview session and generates initial questions.
+    """
+    try:
+        session_manager = get_session_manager()
+        question_generator = get_question_generator()
+        
+        # Create session
+        session_id = session_manager.create_session(
+            candidate_id=request.candidate_id,
+            candidate_name=request.candidate_name,
+            candidate_email=request.candidate_email,
+            job_description=request.job_description,
+            candidate_resume=request.candidate_resume,
+            interview_type=request.interview_type
+        )
+        
+        # Generate initial questions based on interview type
+        session = session_manager.get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=500, detail="Failed to create session")
+        
+        questions = []
+        if request.interview_type in ["technical", "mixed"]:
+            technical_questions = question_generator.generate_technical_questions(
+                job_description=request.job_description,
+                candidate_resume=request.candidate_resume,
+                num_questions=3
+            )
+            questions.extend(technical_questions)
+        
+        if request.interview_type in ["behavioral", "mixed"]:
+            behavioral_questions = question_generator.generate_behavioral_questions(
+                job_description=request.job_description,
+                candidate_resume=request.candidate_resume,
+                num_questions=2
+            )
+            questions.extend(behavioral_questions)
+        
+        # Add questions to session
+        for question in questions:
+            session_manager.add_question(session_id, question)
+        
+        return InterviewStartResponse(
+            session_id=session_id,
+            status="created",
+            message=f"Interview session created with {len(questions)} questions"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error starting interview: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/interview/{session_id}/next-question", response_model=QuestionResponse, tags=["Interview"])
+async def get_next_question(session_id: str):
+    """
+    Get the next question for an interview session.
+    
+    Returns the current question if interview is in progress.
+    """
+    try:
+        session_manager = get_session_manager()
+        session = session_manager.get_session(session_id)
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Find next unanswered question
+        answered_ids = {ans["question_id"] for ans in session.get("answers", [])}
+        questions = session.get("questions", [])
+        
+        for i, question in enumerate(questions):
+            if i not in answered_ids:
+                return QuestionResponse(
+                    question_id=i,
+                    question=question.get("question", ""),
+                    question_type=question.get("type", "technical"),
+                    expected_points=question.get("expected_points"),
+                    star_required=question.get("star_required"),
+                    skills_tested=question.get("skills_tested", []),
+                    skills_assessed=question.get("skills_assessed", [])
+                )
+        
+        # All questions answered
+        raise HTTPException(status_code=404, detail="No more questions available")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting next question: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/interview/submit-answer", response_model=AnswerEvaluationResponse, tags=["Interview"])
+async def submit_answer(request: SubmitAnswerRequest):
+    """
+    Submit an answer to an interview question.
+    
+    Evaluates the answer and returns score and feedback.
+    """
+    try:
+        session_manager = get_session_manager()
+        answer_evaluator = get_answer_evaluator()
+        
+        session = session_manager.get_session(request.session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Get question
+        questions = session.get("questions", [])
+        if request.question_id >= len(questions):
+            raise HTTPException(status_code=404, detail="Question not found")
+        
+        question = questions[request.question_id]
+        
+        # Evaluate answer
+        evaluation = answer_evaluator.evaluate_answer(
+            question=question,
+            answer=request.answer,
+            job_description=session["job_description"],
+            question_type=question.get("type", "technical")
+        )
+        
+        # Save answer and evaluation
+        session_manager.add_answer(
+            session_id=request.session_id,
+            question_id=request.question_id,
+            answer=request.answer,
+            evaluation=evaluation
+        )
+        
+        return AnswerEvaluationResponse(
+            question_id=request.question_id,
+            score=evaluation.get("score", 0.0),
+            strengths=evaluation.get("strengths", []),
+            weaknesses=evaluation.get("weaknesses", []),
+            key_points=evaluation.get("key_points", []),
+            recommendation=evaluation.get("recommendation", "needs_followup"),
+            feedback=evaluation.get("feedback", ""),
+            star_completeness=evaluation.get("star_completeness")
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error submitting answer: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/interview/{session_id}/status", response_model=InterviewStatusResponse, tags=["Interview"])
+async def get_interview_status(session_id: str):
+    """
+    Get the status of an interview session.
+    """
+    try:
+        session_manager = get_session_manager()
+        session = session_manager.get_session(session_id)
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        answered_ids = {ans["question_id"] for ans in session.get("answers", [])}
+        questions = session.get("questions", [])
+        
+        # Find next question ID
+        current_question_id = None
+        for i, question in enumerate(questions):
+            if i not in answered_ids:
+                current_question_id = i
+                break
+        
+        # Calculate scores if all questions answered
+        scores = {}
+        if len(answered_ids) == len(questions) and len(questions) > 0:
+            scores = session_manager.calculate_overall_scores(session_id)
+            if session["status"] != "completed":
+                session_manager.complete_session(session_id)
+        
+        return InterviewStatusResponse(
+            session_id=session_id,
+            status=session["status"],
+            candidate_name=session["candidate_name"],
+            total_questions=len(questions),
+            answered_questions=len(answered_ids),
+            current_question_id=current_question_id,
+            overall_score=scores.get("overall_score"),
+            technical_score=scores.get("technical_score"),
+            behavioral_score=scores.get("behavioral_score")
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting interview status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/interview/{session_id}/report", response_model=InterviewReportResponse, tags=["Interview"])
+async def get_interview_report(session_id: str):
+    """
+    Get complete interview report.
+    
+    Returns full interview details including all questions, answers, and evaluations.
+    """
+    try:
+        session_manager = get_session_manager()
+        session = session_manager.get_session(session_id)
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Calculate scores
+        scores = session_manager.calculate_overall_scores(session_id)
+        
+        return InterviewReportResponse(
+            session_id=session_id,
+            candidate_name=session["candidate_name"],
+            candidate_email=session["candidate_email"],
+            job_description=session["job_description"],
+            interview_type=session["interview_type"],
+            status=session["status"],
+            scores=scores,
+            questions=session.get("questions", []),
+            answers=session.get("answers", []),
+            created_at=session["created_at"],
+            completed_at=session.get("completed_at")
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting interview report: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

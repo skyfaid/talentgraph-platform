@@ -360,18 +360,47 @@ class RankingExplainer:
         # Add SHAP explanations if available
         if self.use_shap and self.shap_explainer:
             try:
-                # SHAP skill importance
+                # BASIC: SHAP skill importance (always included)
                 shap_skill_importance = self.shap_explainer.explain_skill_importance(
                     skills_present=skill_analysis['matched_skills'] + skill_analysis['extra_skills'],
                     skills_required=skill_analysis['matched_skills'] + skill_analysis['missing_skills'],
                     skill_weights={skill: 1.0 for skill in skill_analysis['matched_skills']}
                 )
                 
+                # ADVANCED: Multi-feature SHAP (experience, education, certifications, leadership)
+                candidate_features = {
+                    "skills": skill_analysis['matched_skills'] + skill_analysis['extra_skills'],
+                    "experience_years": experience_match.get('years', 0),
+                    "experience_level": experience_match.get('level', ''),
+                    "education_level": self._extract_education_level(resume_text, llm_evaluation),
+                    "has_leadership": leadership_info.get('has_leadership', False)
+                }
+                
+                job_requirements = self._extract_job_requirements(job_description)
+                
+                # Get multi-feature analysis
+                multi_feature_analysis = self.shap_explainer.explain_multi_feature_importance(
+                    candidate_features=candidate_features,
+                    job_requirements=job_requirements,
+                    current_score=candidate_result['final_score'],
+                    ranker=ranker
+                )
+                
+                # ADVANCED: Counterfactual explanations
+                counterfactuals = self.shap_explainer.generate_counterfactuals(
+                    candidate_features=candidate_features,
+                    job_requirements=job_requirements,
+                    current_score=candidate_result['final_score'],
+                    ranker=ranker
+                )
+                
                 explanation["shap_analysis"] = {
                     "skill_importance": shap_skill_importance,
+                    "multi_feature_importance": multi_feature_analysis,
+                    "counterfactuals": counterfactuals,
                     "available": True
                 }
-                logger.debug("SHAP analysis added to explanation")
+                logger.debug("SHAP analysis added to explanation (with advanced features)")
             except Exception as e:
                 logger.warning(f"SHAP analysis failed: {e}")
                 explanation["shap_analysis"] = {"available": False, "error": str(e)}
@@ -381,7 +410,7 @@ class RankingExplainer:
         # Add LIME explanations if available
         if self.use_lime and self.lime_explainer and ranker:
             try:
-                # LIME text-level importance
+                # BASIC: LIME text-level importance (always included)
                 lime_explanation = self.lime_explainer.explain_resume_sections(
                     resume_text=resume_text,
                     job_description=job_description,
@@ -389,11 +418,37 @@ class RankingExplainer:
                     num_features=15
                 )
                 
+                # ADVANCED: Section-specific analysis
+                section_analyses = {}
+                for section in ["experience", "skills", "education"]:
+                    try:
+                        section_analysis = self.lime_explainer.explain_section_specific(
+                            resume_text=resume_text,
+                            job_description=job_description,
+                            ranker=ranker,
+                            section=section
+                        )
+                        if "error" not in section_analysis:
+                            section_analyses[section] = section_analysis
+                    except:
+                        pass  # Skip if section not found
+                
+                # ADVANCED: Counterfactual text explanations
+                text_counterfactuals = self.lime_explainer.generate_counterfactual_text_explanations(
+                    resume_text=resume_text,
+                    job_description=job_description,
+                    ranker=ranker,
+                    current_score=candidate_result['final_score'],
+                    num_scenarios=5
+                )
+                
                 explanation["lime_analysis"] = {
                     "text_importance": lime_explanation,
+                    "section_specific": section_analyses,
+                    "counterfactuals": text_counterfactuals,
                     "available": True
                 }
-                logger.debug("LIME analysis added to explanation")
+                logger.debug("LIME analysis added to explanation (with advanced features)")
             except Exception as e:
                 logger.warning(f"LIME analysis failed: {e}")
                 explanation["lime_analysis"] = {"available": False, "error": str(e)}
@@ -434,6 +489,89 @@ class RankingExplainer:
         return {
             "has_leadership": has_leadership,
             "mentioned": has_leadership
+        }
+    
+    def _extract_education_level(self, resume_text: str, llm_evaluation: str = "") -> str:
+        """
+        Extract education level from resume or LLM evaluation.
+        
+        Returns:
+            Education level (e.g., "masters", "bachelors", "phd")
+        """
+        text_to_search = (llm_evaluation + " " + resume_text).lower()
+        
+        if any(word in text_to_search for word in ["phd", "doctorate", "ph.d"]):
+            return "phd"
+        elif any(word in text_to_search for word in ["masters", "master", "ms", "ma", "m.sc", "m.tech"]):
+            return "masters"
+        elif any(word in text_to_search for word in ["bachelors", "bachelor", "bs", "ba", "b.sc", "b.tech"]):
+            return "bachelors"
+        elif any(word in text_to_search for word in ["associate", "diploma"]):
+            return "associate"
+        else:
+            return "unknown"
+    
+    def _extract_job_requirements(self, job_description: str) -> Dict[str, Any]:
+        """
+        Extract structured requirements from job description.
+        
+        Returns:
+            Dictionary with extracted requirements:
+            {
+                "required_skills": [...],
+                "min_experience_years": 5,
+                "preferred_level": "senior",
+                "education_required": "bachelors",
+                "certifications_preferred": [...],
+                "leadership_required": True/False
+            }
+        """
+        job_lower = job_description.lower()
+        
+        # Extract skills
+        required_skills = self.extract_skills_from_text(job_description)
+        
+        # Extract experience years
+        years_match = re.search(r'(\d+)\s*(?:\+)?\s*years?', job_lower)
+        min_years = int(years_match.group(1)) if years_match else 0
+        
+        # Extract level
+        level = None
+        if re.search(r'senior|lead|principal|architect', job_lower):
+            level = "senior"
+        elif re.search(r'junior|entry|associate', job_lower):
+            level = "junior"
+        elif re.search(r'mid|intermediate', job_lower):
+            level = "mid"
+        
+        # Extract education
+        education = "bachelors"  # Default
+        if re.search(r'phd|doctorate', job_lower):
+            education = "phd"
+        elif re.search(r'masters?|ms|ma', job_lower):
+            education = "masters"
+        elif re.search(r'bachelors?|bs|ba', job_lower):
+            education = "bachelors"
+        
+        # Extract leadership requirement
+        leadership_required = bool(re.search(
+            r'leadership|leading|manage|team|mentor', job_lower
+        ))
+        
+        # Extract certifications
+        cert_keywords = ["certified", "certification", "cert", "aws", "azure", "gcp"]
+        certifications = []
+        for cert in cert_keywords:
+            if cert in job_lower:
+                certifications.append(cert)
+        
+        return {
+            "required_skills": required_skills,
+            "min_experience_years": min_years,
+            "preferred_level": level,
+            "education_required": education,
+            "certifications_preferred": certifications,
+            "leadership_required": leadership_required
         }
     
     def _extract_strengths(self, evaluation_text: str) -> List[str]:

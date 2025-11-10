@@ -20,6 +20,9 @@ ENV/
 
 # ChromaDB
 chroma_db/
+
+# Interview sessions
+interview_sessions/
 *.sqlite3
 
 # Logs

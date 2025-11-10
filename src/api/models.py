@@ -79,6 +79,104 @@ class HealthResponse(BaseModel):
     total_resumes: Optional[int] = Field(None, description="Total resumes in vectorstore")
 
 
+# ========== INTERVIEW MODELS ==========
+
+class InterviewStartRequest(BaseModel):
+    """Request model for starting an interview."""
+    candidate_id: str = Field(..., description="Candidate ID from CV ranking")
+    candidate_name: str = Field(..., description="Candidate name")
+    candidate_email: str = Field(..., description="Candidate email")
+    job_description: str = Field(..., description="Job description")
+    candidate_resume: str = Field(..., description="Candidate resume text")
+    interview_type: str = Field("mixed", description="Interview type: technical, behavioral, or mixed")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "candidate_id": "resume1_123",
+                "candidate_name": "John Smith",
+                "candidate_email": "john@example.com",
+                "job_description": "Senior Data Engineer...",
+                "candidate_resume": "John Smith is a data engineer...",
+                "interview_type": "mixed"
+            }
+        }
+
+
+class InterviewStartResponse(BaseModel):
+    """Response model for starting an interview."""
+    session_id: str = Field(..., description="Interview session ID")
+    status: str = Field(..., description="Session status")
+    message: str = Field(..., description="Status message")
+
+
+class QuestionResponse(BaseModel):
+    """Response model for a question."""
+    question_id: int = Field(..., description="Question ID")
+    question: str = Field(..., description="Question text")
+    question_type: str = Field(..., description="Question type: technical, behavioral, or followup")
+    expected_points: Optional[str] = Field(None, description="Expected answer points (for technical)")
+    star_required: Optional[str] = Field(None, description="STAR format requirements (for behavioral)")
+    skills_tested: Optional[List[str]] = Field(None, description="Skills being tested")
+    skills_assessed: Optional[List[str]] = Field(None, description="Skills being assessed (for behavioral)")
+
+
+class SubmitAnswerRequest(BaseModel):
+    """Request model for submitting an answer."""
+    session_id: str = Field(..., description="Interview session ID")
+    question_id: int = Field(..., description="Question ID")
+    answer: str = Field(..., description="Candidate's answer")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "session_id": "abc-123-def",
+                "question_id": 0,
+                "answer": "I have 5 years of experience with Python..."
+            }
+        }
+
+
+class AnswerEvaluationResponse(BaseModel):
+    """Response model for answer evaluation."""
+    question_id: int = Field(..., description="Question ID")
+    score: float = Field(..., description="Answer score (0-10)")
+    strengths: List[str] = Field(..., description="Answer strengths")
+    weaknesses: List[str] = Field(..., description="Answer weaknesses")
+    key_points: List[str] = Field(..., description="Key points extracted")
+    recommendation: str = Field(..., description="Recommendation: strong/weak/needs_followup")
+    feedback: str = Field(..., description="Detailed feedback")
+    star_completeness: Optional[str] = Field(None, description="STAR completeness (for behavioral)")
+
+
+class InterviewStatusResponse(BaseModel):
+    """Response model for interview status."""
+    session_id: str = Field(..., description="Session ID")
+    status: str = Field(..., description="Session status: created, in_progress, completed")
+    candidate_name: str = Field(..., description="Candidate name")
+    total_questions: int = Field(..., description="Total questions")
+    answered_questions: int = Field(..., description="Number of answered questions")
+    current_question_id: Optional[int] = Field(None, description="Current question ID (if in progress)")
+    overall_score: Optional[float] = Field(None, description="Overall score (if completed)")
+    technical_score: Optional[float] = Field(None, description="Technical score average")
+    behavioral_score: Optional[float] = Field(None, description="Behavioral score average")
+
+
+class InterviewReportResponse(BaseModel):
+    """Response model for interview report."""
+    session_id: str = Field(..., description="Session ID")
+    candidate_name: str = Field(..., description="Candidate name")
+    candidate_email: str = Field(..., description="Candidate email")
+    job_description: str = Field(..., description="Job description")
+    interview_type: str = Field(..., description="Interview type")
+    status: str = Field(..., description="Session status")
+    scores: Dict[str, float] = Field(..., description="Overall scores")
+    questions: List[Dict[str, Any]] = Field(..., description="All questions")
+    answers: List[Dict[str, Any]] = Field(..., description="All answers with evaluations")
+    created_at: str = Field(..., description="Session creation time")
+    completed_at: Optional[str] = Field(None, description="Session completion time")
+
+
 class UploadResponse(BaseModel):
     """Response model for PDF upload."""
     message: str = Field(..., description="Upload status message")

@@ -13,7 +13,15 @@ from .models import (
     SkillAnalysis,
     ScoreBreakdown,
     SHAPAnalysis,
-    LIMEAnalysis
+    LIMEAnalysis,
+    # Interview models
+    InterviewStartRequest,
+    InterviewStartResponse,
+    QuestionResponse,
+    SubmitAnswerRequest,
+    AnswerEvaluationResponse,
+    InterviewStatusResponse,
+    InterviewReportResponse
 )
 from .service import CVRankingService, get_service
 
@@ -30,6 +38,14 @@ __all__ = [
     'ScoreBreakdown',
     'SHAPAnalysis',
     'LIMEAnalysis',
+    # Interview models
+    'InterviewStartRequest',
+    'InterviewStartResponse',
+    'QuestionResponse',
+    'SubmitAnswerRequest',
+    'AnswerEvaluationResponse',
+    'InterviewStatusResponse',
+    'InterviewReportResponse',
     'CVRankingService',
     'get_service'
 ]

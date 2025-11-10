@@ -41,3 +41,7 @@ mlflow
 # XAI (Explainable AI)
 shap
 lime
+
+# Frontend
+streamlit
+requests
