@@ -1,6 +1,43 @@
+# Core data processing
 pandas
 numpy
+
+# Machine learning and embeddings
 scikit-learn
 torch
 sentence-transformers
+
+# LangChain and vector stores - matching notebook version
+langchain
+langchain-core
+langchain-groq
+langchain-community
+chromadb
+
+# LLM and NLP
+langdetect
+nltk
+
+# Visualization
+matplotlib
+seaborn
+
+# PDF parsing (optional, for future PDF support)
+pdfplumber
+PyPDF2
+pypdf
+
+# Utilities
 tqdm
+
+# FastAPI (for future API development)
+fastapi
+uvicorn
+python-multipart
+
+# MLOps and Experiment Tracking
+mlflow
+
+# XAI (Explainable AI)
+shap
+lime
