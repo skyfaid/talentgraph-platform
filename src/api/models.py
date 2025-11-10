@@ -88,7 +88,8 @@ class InterviewStartRequest(BaseModel):
     candidate_email: str = Field(..., description="Candidate email")
     job_description: str = Field(..., description="Job description")
     candidate_resume: str = Field(..., description="Candidate resume text")
-    interview_type: str = Field("mixed", description="Interview type: technical, behavioral, or mixed")
+    interview_type: str = Field(default="unified", description="Interview type: unified (default), technical, behavioral, or mixed")
+    question_count: Optional[int] = Field(default=5, description="Total number of questions (5, 7, or 10). Only used for unified type.")
     
     class Config:
         json_schema_extra = {

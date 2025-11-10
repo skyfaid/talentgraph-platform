@@ -12,6 +12,7 @@ langchain
 langchain-core
 langchain-groq
 langchain-community
+langchain-classic
 chromadb
 
 # LLM and NLP
@@ -45,3 +46,10 @@ lime
 # Frontend
 streamlit
 requests
+audio-recorder-streamlit
+
+# Voice & Audio (FREE options only)
+edge-tts
+gtts
+openai-whisper
+pydub

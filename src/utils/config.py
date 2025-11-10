@@ -14,7 +14,9 @@ EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 CHROMA_COLLECTION_NAME = "resumes"
 
 # LLM configuration
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise ValueError("GROQ_API_KEY environment variable is required. Please set it before running the application.")
 GROQ_MODEL_NAME = "meta-llama/llama-4-scout-17b-16e-instruct"
 GROQ_TEMPERATURE = 0.1
 GROQ_TOP_P = 0.9

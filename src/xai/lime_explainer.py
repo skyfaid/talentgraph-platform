@@ -192,10 +192,13 @@ class LIMEExplainer:
             
             # STEP 2: Get LIME explanation
             # LIME perturbs the resume and calculates word importance
+            # num_samples=250: Optimized for speed (was 1000, default is 5000)
+            # Still provides good results while being much faster
             explanation = self.explainer.explain_instance(
                 resume_text,           # Original resume text
                 predict_fn,            # Function to score variations
                 num_features=num_features,  # Number of words to analyze
+                num_samples=250,       # Number of perturbations (reduced for speed - was 1000)
                 labels=[1]             # Explain "High Match" class
             )
             

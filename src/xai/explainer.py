@@ -410,36 +410,37 @@ class RankingExplainer:
         # Add LIME explanations if available
         if self.use_lime and self.lime_explainer and ranker:
             try:
-                # BASIC: LIME text-level importance (always included)
+                # BASIC: LIME text-level importance (optimized for speed)
                 lime_explanation = self.lime_explainer.explain_resume_sections(
                     resume_text=resume_text,
                     job_description=job_description,
                     ranker=ranker,
-                    num_features=15
+                    num_features=10  # Reduced from 15 to 10 for speed
                 )
                 
-                # ADVANCED: Section-specific analysis
+                # ADVANCED: Section-specific analysis (disabled for speed - can be enabled if needed)
+                # Commented out to speed up LIME processing
                 section_analyses = {}
-                for section in ["experience", "skills", "education"]:
-                    try:
-                        section_analysis = self.lime_explainer.explain_section_specific(
-                            resume_text=resume_text,
-                            job_description=job_description,
-                            ranker=ranker,
-                            section=section
-                        )
-                        if "error" not in section_analysis:
-                            section_analyses[section] = section_analysis
-                    except:
-                        pass  # Skip if section not found
+                # for section in ["experience", "skills", "education"]:
+                #     try:
+                #         section_analysis = self.lime_explainer.explain_section_specific(
+                #             resume_text=resume_text,
+                #             job_description=job_description,
+                #             ranker=ranker,
+                #             section=section
+                #         )
+                #         if "error" not in section_analysis:
+                #             section_analyses[section] = section_analysis
+                #     except:
+                #         pass  # Skip if section not found
                 
-                # ADVANCED: Counterfactual text explanations
+                # ADVANCED: Counterfactual text explanations (reduced scenarios for speed)
                 text_counterfactuals = self.lime_explainer.generate_counterfactual_text_explanations(
                     resume_text=resume_text,
                     job_description=job_description,
                     ranker=ranker,
                     current_score=candidate_result['final_score'],
-                    num_scenarios=5
+                    num_scenarios=3  # Reduced from 5 to 3 for speed
                 )
                 
                 explanation["lime_analysis"] = {

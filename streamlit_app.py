@@ -13,6 +13,10 @@ from pathlib import Path
 # Add src to path for direct service access
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Setup logger
+import logging
+logger = logging.getLogger(__name__)
+
 # Try to use service directly (faster) or fall back to API
 API_URL = "http://localhost:8000"  # Default API URL
 try:
@@ -444,15 +448,15 @@ def start_interview_flow(candidate: Dict, job_description: str, index: int = 1):
     st.markdown("---")
     st.markdown("## 🎤 Interview Setup")
     st.success(f"✅ Interview setup for: **{candidate_name}** ({candidate_email})")
-    st.info("Select the interview type below and click 'Start Interview Session' to begin.")
+    st.info("Select the number of questions below and click 'Start Interview Session' to begin.")
     
-    # Interview type selection
-    interview_type = st.radio(
-        "Select Interview Type:",
-        ["mixed", "technical", "behavioral"],
-        horizontal=True,
-        key=f"interview_type_{unique_key}",
-        help="Mixed: Both technical and behavioral questions | Technical: Focus on skills | Behavioral: Focus on soft skills"
+    # Question count selection (5, 7, or 10 questions)
+    question_count = st.selectbox(
+        "Number of Questions",
+        [5, 7, 10],
+        index=0,  # Default to 5
+        key=f"question_count_{unique_key}",
+        help="5 questions: 3 behavioral + 2 technical | 7 questions: 4 behavioral + 3 technical | 10 questions: 6 behavioral + 4 technical"
     )
     
     # Start interview button
@@ -463,16 +467,19 @@ def start_interview_flow(candidate: Dict, job_description: str, index: int = 1):
     if start_btn_clicked:
         with st.spinner("🔄 Creating interview session and generating questions..."):
             try:
+                # Get API URL from session state or use default
+                current_api_url = st.session_state.get('api_url', API_URL)
                 # Call interview API
                 response = requests.post(
-                    f"{API_URL}/interview/start",
+                    f"{current_api_url}/interview/start",
                     json={
                         "candidate_id": candidate_id,
                         "candidate_name": candidate_name,
                         "candidate_email": candidate_email,
                         "job_description": job_description,
                         "candidate_resume": candidate_resume,
-                        "interview_type": interview_type
+                        "interview_type": "unified",  # Use unified mode
+                        "question_count": question_count  # Pass question count
                     },
                     timeout=60
                 )
@@ -520,8 +527,10 @@ def start_interview_flow(candidate: Dict, job_description: str, index: int = 1):
 def show_interview_interface(session_id: str, candidate_id: str):
     """Show the interview interface for answering questions."""
     try:
+        # Get API URL from session state or use default
+        current_api_url = st.session_state.get('api_url', API_URL)
         # Get interview status
-        status_response = requests.get(f"{API_URL}/interview/{session_id}/status", timeout=30)
+        status_response = requests.get(f"{current_api_url}/interview/{session_id}/status", timeout=30)
         status_response.raise_for_status()
         status = status_response.json()
         
@@ -551,7 +560,7 @@ def show_interview_interface(session_id: str, candidate_id: str):
         if current_q_id is not None:
             try:
                 question_response = requests.get(
-                    f"{API_URL}/interview/{session_id}/next-question",
+                    f"{current_api_url}/interview/{session_id}/next-question",
                     timeout=30
                 )
                 question_response.raise_for_status()
@@ -562,7 +571,64 @@ def show_interview_interface(session_id: str, candidate_id: str):
                 type_badge = "🔧 Technical" if q_type == "technical" else "💬 Behavioral" if q_type == "behavioral" else "❓ Follow-up"
                 st.markdown(f"**{type_badge} Question #{current_q_id + 1}**")
                 
-                st.markdown(f"**{question.get('question', 'N/A')}**")
+                question_text = question.get('question', 'N/A')
+                st.markdown(f"**{question_text}**")
+                
+                # Voice reading (TTS)
+                try:
+                    from src.voice import get_tts_service
+                    tts_service = get_tts_service()
+                    
+                    # Check if we already generated audio for this question
+                    audio_key = f"audio_{session_id}_{current_q_id}"
+                    error_key = f"audio_error_{session_id}_{current_q_id}"
+                    
+                    # Generate audio section
+                    with st.container():
+                        col1, col2 = st.columns([3, 1])
+                        with col1:
+                            st.markdown("### 🔊 Listen to Question")
+                        
+                        if audio_key not in st.session_state:
+                            # Generate audio on first display
+                            with st.spinner("🎤 Generating voice..."):
+                                audio_bytes = tts_service.text_to_speech(
+                                    text=question_text,
+                                    provider="auto"  # Tries gTTS first (simpler), then edge-tts
+                                )
+                                if audio_bytes and len(audio_bytes) > 0:
+                                    st.session_state[audio_key] = audio_bytes
+                                    # Clear any previous error
+                                    if error_key in st.session_state:
+                                        del st.session_state[error_key]
+                                    st.success("✅ Audio ready!")
+                                else:
+                                    st.session_state[error_key] = "Failed to generate audio. Please check your internet connection."
+                        
+                        # Display audio player if available
+                        if audio_key in st.session_state:
+                            audio_bytes = st.session_state[audio_key]
+                            if audio_bytes and len(audio_bytes) > 0:
+                                # Large, prominent audio player
+                                st.audio(audio_bytes, format="audio/mp3", autoplay=False)
+                                st.caption("🎧 **Click the play button above to hear the question read aloud**")
+                                
+                                # Also add a play button for easier access
+                                if st.button("▶️ Play Question Audio", key=f"play_{session_id}_{current_q_id}", type="primary"):
+                                    st.audio(audio_bytes, format="audio/mp3", autoplay=True)
+                                    st.rerun()
+                            else:
+                                st.warning("⚠️ Audio generation failed. Please check your internet connection.")
+                        elif error_key in st.session_state:
+                            st.warning(f"⚠️ {st.session_state[error_key]}")
+                            if st.button("🔄 Retry Audio Generation", key=f"retry_audio_{session_id}_{current_q_id}"):
+                                if error_key in st.session_state:
+                                    del st.session_state[error_key]
+                                st.rerun()
+                except Exception as e:
+                    # TTS not available, show error
+                    st.warning(f"⚠️ Voice reading unavailable: {str(e)}")
+                    st.info("💡 You can still read the question above and answer it.")
                 
                 # Show hints if available
                 if question.get("expected_points"):
@@ -573,27 +639,180 @@ def show_interview_interface(session_id: str, candidate_id: str):
                     with st.expander("⭐ STAR Format Guide"):
                         st.write(question.get("star_required"))
                 
-                # Answer input
+                # Answer input - Text or Voice
                 answer_key = f"answer_{session_id}_{current_q_id}"
-                answer = st.text_area(
-                    "Your Answer:",
-                    height=200,
-                    key=answer_key,
-                    placeholder="Type your answer here..."
-                )
+                clear_answer_key = f"clear_answer_{session_id}_{current_q_id}"
+                
+                # Check if we need to clear the answer (from previous submit)
+                if st.session_state.get(clear_answer_key, False):
+                    # Delete the answer key and clear the flag before creating widget
+                    if answer_key in st.session_state:
+                        del st.session_state[answer_key]
+                    st.session_state[clear_answer_key] = False
+                
+                # Initialize answer from session state if available
+                # This ensures voice transcription is preserved
+                if answer_key not in st.session_state:
+                    st.session_state[answer_key] = ""
+                
+                answer = st.session_state.get(answer_key, "")
+                
+                # Tabs for text vs voice input
+                input_tab1, input_tab2 = st.tabs(["✍️ Type Answer", "🎤 Voice Answer"])
+                
+                with input_tab1:
+                    # Text area - this will sync with session state via key
+                    answer = st.text_area(
+                        "Your Answer:",
+                        value=st.session_state[answer_key],
+                        height=200,
+                        key=answer_key,
+                        placeholder="Type your answer here..."
+                    )
+                    # Update session state when user types
+                    if answer != st.session_state.get(answer_key, ""):
+                        st.session_state[answer_key] = answer
+                
+                with input_tab2:
+                    st.info("🎤 Record your answer using your microphone")
+                    st.caption("💡 Click the microphone button below to start recording")
+                    
+                    try:
+                        from audio_recorder_streamlit import audio_recorder
+                        
+                        # Audio recorder with better error handling
+                        try:
+                            audio_data = audio_recorder(
+                                text="🎤 Click to record",
+                                recording_color="#e74c3c",
+                                neutral_color="#6c757d",
+                                icon_name="microphone",
+                                icon_size="2x",
+                                pause_threshold=3.0
+                            )
+                        except Exception as recorder_error:
+                            st.error(f"❌ Microphone error: {recorder_error}")
+                            st.info("💡 Please check browser permissions. Click the lock icon in address bar and allow microphone access.")
+                            audio_data = None
+                        
+                        # Show status
+                        if audio_data is not None:
+                            if len(audio_data) > 0:
+                                st.success(f"✅ Audio recorded ({len(audio_data)} bytes)")
+                                
+                                # Save audio to temporary file
+                                import tempfile
+                                import os
+                                from pydub import AudioSegment
+                                import io
+                                
+                                # Save audio to temp file
+                                temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+                                temp_audio.write(audio_data)
+                                temp_audio.close()
+                                
+                                # Convert to WAV format if needed (Whisper expects WAV)
+                                try:
+                                    # Try to load and convert to WAV
+                                    audio = AudioSegment.from_file(io.BytesIO(audio_data))
+                                    # Ensure it's mono and 16kHz (Whisper's preferred format)
+                                    audio = audio.set_channels(1).set_frame_rate(16000)
+                                    
+                                    # Save as WAV
+                                    wav_path = temp_audio.name.replace(".wav", "_converted.wav")
+                                    audio.export(wav_path, format="wav")
+                                    
+                                    # Use converted file
+                                    audio_file_path = wav_path
+                                except Exception as conv_error:
+                                    # If conversion fails, try original file
+                                    logging.warning(f"Audio conversion failed: {conv_error}, using original")
+                                    audio_file_path = temp_audio.name
+                                
+                                # Convert speech to text
+                                try:
+                                    from src.voice import get_stt_service
+                                    stt_service = get_stt_service()
+                                    
+                                    if not stt_service.whisper_available or not stt_service.model:
+                                        st.error("⚠️ Whisper not available. Please install: pip install openai-whisper")
+                                    else:
+                                        with st.spinner("🔄 Converting speech to text..."):
+                                            transcription = stt_service.speech_to_text(audio_file_path)
+                                            
+                                            if transcription.get("text"):
+                                                transcribed_text = transcription['text'].strip()
+                                                # Update answer text area with transcribed text
+                                                st.success(f"✅ Transcribed: {transcribed_text[:100]}...")
+                                                
+                                                # CRITICAL: Set the answer in session state
+                                                st.session_state[answer_key] = transcribed_text
+                                                
+                                                # Also show in the text area tab
+                                                st.info(f"📝 Your transcribed answer: {transcribed_text[:200]}...")
+                                                
+                                                # Force update the answer variable
+                                                answer = transcribed_text
+                                                
+                                                # Show success and refresh
+                                                st.success("✅ Answer saved! You can edit it in the 'Type Answer' tab or submit it now.")
+                                                
+                                                # Small delay then refresh to show transcribed text in text area
+                                                import time
+                                                time.sleep(0.5)
+                                                st.rerun()
+                                            else:
+                                                error_msg = transcription.get("error", "Unknown error")
+                                                st.error(f"❌ Could not transcribe audio: {error_msg}")
+                                                st.info("💡 Try speaking more clearly or check your microphone.")
+                                except Exception as e:
+                                    st.error(f"❌ Speech-to-text error: {e}")
+                                    import traceback
+                                    st.code(traceback.format_exc())
+                                    st.info("💡 Please type your answer instead or try recording again.")
+                                
+                                # Clean up temp files
+                                try:
+                                    os.unlink(temp_audio.name)
+                                    if audio_file_path != temp_audio.name:
+                                        os.unlink(audio_file_path)
+                                except:
+                                    pass
+                            else:
+                                st.warning("⚠️ No audio data received. Please try recording again.")
+                    except ImportError:
+                        st.error("❌ Voice input not available")
+                        st.info("💡 Please install: `pip install audio-recorder-streamlit`")
+                        answer = st.text_area(
+                            "Your Answer (Voice input unavailable):",
+                            height=200,
+                            key=f"{answer_key}_voice",
+                            placeholder="Voice input not available. Please use the 'Type Answer' tab."
+                        )
+                    except Exception as e:
+                        st.error(f"❌ Voice input error: {e}")
+                        import traceback
+                        st.code(traceback.format_exc())
+                        answer = st.session_state.get(answer_key, "")
                 
                 col1, col2 = st.columns([1, 4])
                 with col1:
                     if st.button("✅ Submit Answer", key=f"submit_{session_id}_{current_q_id}", type="primary"):
-                        if answer.strip():
+                        # Get answer from session state (most reliable - works for both typed and voice)
+                        final_answer = st.session_state.get(answer_key, "").strip()
+                        if not final_answer:
+                            # Fallback to answer variable
+                            final_answer = answer.strip() if answer else ""
+                        
+                        if final_answer:
                             with st.spinner("🔄 Evaluating your answer..."):
                                 try:
                                     submit_response = requests.post(
-                                        f"{API_URL}/interview/submit-answer",
+                                        f"{current_api_url}/interview/submit-answer",
                                         json={
                                             "session_id": session_id,
                                             "question_id": current_q_id,
-                                            "answer": answer
+                                            "answer": final_answer  # Use final_answer from session state
                                         },
                                         timeout=60
                                     )
@@ -624,8 +843,8 @@ def show_interview_interface(session_id: str, candidate_id: str):
                                     # Feedback
                                     st.info(f"**💬 Feedback:**\n\n{evaluation.get('feedback', '')}")
                                     
-                                    # Clear answer and refresh
-                                    st.session_state[answer_key] = ""
+                                    # Mark answer for clearing on next rerun (before widget creation)
+                                    st.session_state[clear_answer_key] = True
                                     st.rerun()
                                     
                                 except requests.exceptions.RequestException as e:
@@ -647,7 +866,7 @@ def show_interview_interface(session_id: str, candidate_id: str):
             if st.button("📊 View Full Report", key=f"report_{session_id}"):
                 try:
                     report_response = requests.get(
-                        f"{API_URL}/interview/{session_id}/report",
+                        f"{current_api_url}/interview/{session_id}/report",
                         timeout=30
                     )
                     report_response.raise_for_status()
@@ -795,11 +1014,16 @@ def display_candidate(candidate: Dict, index: int, job_description: str = ""):
             # Score breakdown
             st.subheader("Score Breakdown")
             score_breakdown = explanation.get('score_breakdown', {})
+            components = score_breakdown.get('components', {})
+            semantic_comp = components.get('semantic', {})
+            llm_comp = components.get('llm', {})
             col1, col2 = st.columns(2)
             with col1:
-                st.metric("Semantic Contribution", f"{score_breakdown.get('semantic_contribution', 0):.2f}")
+                semantic_contrib = semantic_comp.get('contribution', 0)
+                st.metric("Semantic Contribution", f"{semantic_contrib:.2f}")
             with col2:
-                st.metric("LLM Contribution", f"{score_breakdown.get('llm_contribution', 0):.2f}")
+                llm_contrib = llm_comp.get('contribution', 0)
+                st.metric("LLM Contribution", f"{llm_contrib:.2f}")
             
             # Skill analysis
             st.subheader("Skill Analysis")
@@ -824,7 +1048,8 @@ def display_candidate(candidate: Dict, index: int, job_description: str = ""):
             col1, col2 = st.columns(2)
             with col1:
                 st.subheader("✅ Strengths")
-                strengths = explanation.get('strengths', [])
+                insights = explanation.get('insights', {})
+                strengths = insights.get('strengths', [])
                 if strengths:
                     for strength in strengths[:5]:
                         st.write(f"• {strength}")
@@ -832,7 +1057,8 @@ def display_candidate(candidate: Dict, index: int, job_description: str = ""):
                     st.write("None identified")
             with col2:
                 st.subheader("⚠️ Weaknesses")
-                weaknesses = explanation.get('weaknesses', [])
+                insights = explanation.get('insights', {})
+                weaknesses = insights.get('weaknesses', [])
                 if weaknesses:
                     for weakness in weaknesses[:5]:
                         st.write(f"• {weakness}")
@@ -890,7 +1116,7 @@ def main():
         # Settings
         st.subheader("Ranking Settings")
         top_k = st.slider("Number of Top Candidates", 1, 20, 5)
-        include_explanations = st.checkbox("Include XAI Explanations", value=True)
+        include_explanations = st.checkbox("Include XAI Explanations", value=False)
         
         st.divider()
         
@@ -913,8 +1139,11 @@ def main():
     # Main content
     # Job description input
     st.subheader("📝 Job Description")
+    # Use stored job description if available, otherwise use empty string
+    default_job_desc = st.session_state.get("last_job_description", "")
     job_description = st.text_area(
         "Enter the job description to rank candidates against:",
+        value=default_job_desc,
         height=150,
         placeholder="Example: Senior Data Engineer with Python, SQL, AWS; 5+ years experience; leadership skills a plus.",
         help="Provide a detailed job description including required skills, experience level, and any other relevant requirements."
@@ -967,6 +1196,10 @@ def main():
     with col2:
         rank_button = st.button("🚀 Rank Candidates", type="primary", use_container_width=True)
     
+    # Check if we have stored candidates to display (persists across reruns)
+    stored_candidates = st.session_state.get("ranked_candidates", [])
+    stored_job_desc = st.session_state.get("last_job_description", "")
+    
     # Results section
     if rank_button:
         if not job_description.strip():
@@ -984,54 +1217,58 @@ def main():
                 if results:
                     st.success(f"✅ Found {results['total_candidates_evaluated']} candidates, showing top {len(results['candidates'])}")
                     
-                    # Summary metrics
-                    st.subheader("📊 Summary")
-                    candidates = results['candidates']
-                    avg_score = sum(c['final_score'] for c in candidates) / len(candidates) if candidates else 0
-                    max_score = max((c['final_score'] for c in candidates), default=0)
-                    min_score = min((c['final_score'] for c in candidates), default=0)
-                    
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1:
-                        st.metric("Average Score", f"{avg_score:.2f}")
-                    with col2:
-                        st.metric("Highest Score", f"{max_score:.2f}")
-                    with col3:
-                        st.metric("Lowest Score", f"{min_score:.2f}")
-                    with col4:
-                        st.metric("Candidates", len(candidates))
-                    
-                    st.divider()
-                    
-                    # Store job description and candidates for interview flow
+                    # Store results in session state for persistence
+                    st.session_state["ranked_candidates"] = results['candidates']
                     st.session_state["last_job_description"] = job_description
-                    
-                    # Check all candidates for interview button clicks
-                    for idx, candidate in enumerate(candidates, 1):
-                        candidate_id = candidate.get('meta', {}).get('id', '')
-                        interview_flag_key = f"start_interview_{candidate_id}_{idx}"
-                        if st.session_state.get(interview_flag_key, False):
-                            # Set persistent interview state
-                            unique_key = f"{candidate_id}_{idx}"
-                            st.session_state["active_interview_key"] = unique_key
-                            st.session_state["active_interview_candidate"] = candidate
-                            st.session_state["active_interview_index"] = idx
-                            st.session_state["active_interview_job_desc"] = job_description
-                            # Store candidate data for later retrieval
-                            st.session_state[f"candidate_data_{unique_key}"] = candidate
-                            # Reset the trigger flag
-                            st.session_state[interview_flag_key] = False
-                            st.rerun()
-                    
-                    # Display candidates
-                    if not st.session_state.get("active_interview_key"):
-                        st.subheader("👥 Ranked Candidates")
-                    else:
-                        st.markdown("### 👥 Ranked Candidates (Scroll down)")
-                    for idx, candidate in enumerate(candidates, 1):
-                        display_candidate(candidate, idx, job_description=job_description)
+                    stored_candidates = results['candidates']
+                    stored_job_desc = job_description
                 else:
                     st.error("❌ Failed to rank candidates. Please check your configuration.")
+    
+    # Display stored candidates if they exist (even after reruns)
+    if stored_candidates:
+        # Summary metrics
+        st.subheader("📊 Summary")
+        avg_score = sum(c['final_score'] for c in stored_candidates) / len(stored_candidates) if stored_candidates else 0
+        max_score = max((c['final_score'] for c in stored_candidates), default=0)
+        min_score = min((c['final_score'] for c in stored_candidates), default=0)
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Average Score", f"{avg_score:.2f}")
+        with col2:
+            st.metric("Highest Score", f"{max_score:.2f}")
+        with col3:
+            st.metric("Lowest Score", f"{min_score:.2f}")
+        with col4:
+            st.metric("Candidates", len(stored_candidates))
+        
+        st.divider()
+        
+        # Check all candidates for interview button clicks
+        for idx, candidate in enumerate(stored_candidates, 1):
+            candidate_id = candidate.get('meta', {}).get('id', '')
+            interview_flag_key = f"start_interview_{candidate_id}_{idx}"
+            if st.session_state.get(interview_flag_key, False):
+                # Set persistent interview state
+                unique_key = f"{candidate_id}_{idx}"
+                st.session_state["active_interview_key"] = unique_key
+                st.session_state["active_interview_candidate"] = candidate
+                st.session_state["active_interview_index"] = idx
+                st.session_state["active_interview_job_desc"] = stored_job_desc
+                # Store candidate data for later retrieval
+                st.session_state[f"candidate_data_{unique_key}"] = candidate
+                # Reset the trigger flag
+                st.session_state[interview_flag_key] = False
+                st.rerun()
+        
+        # Display candidates
+        if not st.session_state.get("active_interview_key"):
+            st.subheader("👥 Ranked Candidates")
+        else:
+            st.markdown("### 👥 Ranked Candidates (Scroll down)")
+        for idx, candidate in enumerate(stored_candidates, 1):
+            display_candidate(candidate, idx, job_description=stored_job_desc)
     
     # Footer
     st.markdown("---")

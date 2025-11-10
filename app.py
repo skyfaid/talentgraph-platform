@@ -593,31 +593,57 @@ async def start_interview(request: InterviewStartRequest):
             interview_type=request.interview_type
         )
         
-        # Generate initial questions based on interview type
+        # Generate initial questions using unified method
         session = session_manager.get_session(session_id)
         if not session:
             raise HTTPException(status_code=500, detail="Failed to create session")
         
-        questions = []
-        if request.interview_type in ["technical", "mixed"]:
-            technical_questions = question_generator.generate_technical_questions(
-                job_description=request.job_description,
-                candidate_resume=request.candidate_resume,
-                num_questions=3
-            )
-            questions.extend(technical_questions)
+        # Get question count (default to 5 if not provided)
+        question_count = getattr(request, 'question_count', 5)
+        if question_count not in [5, 7, 10]:
+            question_count = 5
         
-        if request.interview_type in ["behavioral", "mixed"]:
-            behavioral_questions = question_generator.generate_behavioral_questions(
+        # Use unified question generation (3 behavioral + 2 technical for 5 questions)
+        if request.interview_type == "unified":
+            questions = question_generator.generate_unified_questions(
                 job_description=request.job_description,
                 candidate_resume=request.candidate_resume,
-                num_questions=2
+                total_questions=question_count
             )
-            questions.extend(behavioral_questions)
+        else:
+            # Fallback to old method for compatibility
+            questions = []
+            if request.interview_type in ["technical", "mixed"]:
+                technical_questions = question_generator.generate_technical_questions(
+                    job_description=request.job_description,
+                    candidate_resume=request.candidate_resume,
+                    num_questions=3
+                )
+                questions.extend(technical_questions)
+            
+            if request.interview_type in ["behavioral", "mixed"]:
+                behavioral_questions = question_generator.generate_behavioral_questions(
+                    job_description=request.job_description,
+                    candidate_resume=request.candidate_resume,
+                    num_questions=2
+                )
+                questions.extend(behavioral_questions)
+        
+        # CRITICAL: Ensure we always have questions
+        if len(questions) == 0:
+            logger.error("CRITICAL: No questions generated! Generating emergency fallback questions.")
+            # Generate emergency fallback questions
+            questions = question_generator._generate_emergency_fallback_questions(
+                request.job_description,
+                question_count
+            )
         
         # Add questions to session
         for question in questions:
             session_manager.add_question(session_id, question)
+        
+        if len(questions) < question_count:
+            logger.warning(f"Only generated {len(questions)} questions, expected {question_count}")
         
         return InterviewStartResponse(
             session_id=session_id,
@@ -813,5 +839,5 @@ async def get_interview_report(session_id: str):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
 
