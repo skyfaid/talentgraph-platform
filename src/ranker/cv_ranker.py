@@ -22,7 +22,8 @@ from ..utils.config import (
     DEFAULT_TOP_K,
     RANKING_SEARCH_MULTIPLIER,
     RESUME_HEAD_CHARS,
-    RESUME_TAIL_CHARS
+    RESUME_TAIL_CHARS,
+    MIN_SCORE_THRESHOLD
 )
 from ..utils.candidate_generator import generate_candidate_info_deterministic
 from ..utils.text_utils import prepare_resume_text, extract_score
@@ -212,14 +213,32 @@ class CVRanker:
                 # Continue with other candidates even if one fails
                 continue
         
-        # Stage 4: Sort by final score (descending) and return top K
+        # Stage 4: Sort by final score (descending)
         ranked.sort(key=lambda x: x["final_score"], reverse=True)
-        top_results = ranked[:top_k]
         
-        logger.info(
-            f"Ranking complete. Top score: {top_results[0]['final_score']:.2f}/10 "
-            f"(avg: {sum(r['final_score'] for r in top_results) / len(top_results):.2f})"
-        )
+        # Filter out candidates below minimum score threshold
+        # This prevents showing bad matches even if top_k is high
+        filtered_ranked = [r for r in ranked if r["final_score"] >= MIN_SCORE_THRESHOLD]
+        
+        # Return top K from filtered results (may be less than top_k if not enough good candidates)
+        top_results = filtered_ranked[:top_k]
+        
+        if len(filtered_ranked) < len(ranked):
+            logger.info(
+                f"Filtered out {len(ranked) - len(filtered_ranked)} candidates below threshold ({MIN_SCORE_THRESHOLD}/10)"
+            )
+        
+        if top_results:
+            logger.info(
+                f"Ranking complete. Top score: {top_results[0]['final_score']:.2f}/10 "
+                f"(avg: {sum(r['final_score'] for r in top_results) / len(top_results):.2f}), "
+                f"showing {len(top_results)}/{top_k} requested (filtered by min threshold: {MIN_SCORE_THRESHOLD})"
+            )
+        else:
+            logger.warning(
+                f"No candidates met the minimum score threshold ({MIN_SCORE_THRESHOLD}/10). "
+                f"Consider adjusting the threshold or job description."
+            )
         
         return top_results
     

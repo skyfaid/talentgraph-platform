@@ -1215,7 +1215,16 @@ def main():
                     results = rank_via_api(job_description, top_k, include_explanations, current_api_url)
                 
                 if results:
-                    st.success(f"✅ Found {results['total_candidates_evaluated']} candidates, showing top {len(results['candidates'])}")
+                    num_shown = len(results['candidates'])
+                    num_requested = results.get('top_k', top_k)
+                    
+                    if num_shown < num_requested:
+                        st.warning(
+                            f"⚠️ Requested {num_requested} candidates, but only {num_shown} met the minimum quality threshold (4.0/10). "
+                            f"Low-scoring candidates were filtered out to avoid showing poor matches."
+                        )
+                    else:
+                        st.success(f"✅ Found {results['total_candidates_evaluated']} candidates, showing top {num_shown}")
                     
                     # Store results in session state for persistence
                     st.session_state["ranked_candidates"] = results['candidates']

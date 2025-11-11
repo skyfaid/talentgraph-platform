@@ -14,7 +14,7 @@ EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 CHROMA_COLLECTION_NAME = "resumes"
 
 # LLM configuration
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY","")
 if not GROQ_API_KEY:
     raise ValueError("GROQ_API_KEY environment variable is required. Please set it before running the application.")
 GROQ_MODEL_NAME = "meta-llama/llama-4-scout-17b-16e-instruct"
@@ -27,6 +27,7 @@ GROQ_SEED = 1
 SEMANTIC_WEIGHT = 0.3  # Weight for semantic similarity (30%)
 LLM_WEIGHT = 0.7  # Weight for LLM score (70%)
 DEFAULT_TOP_K = 5  # Default number of top candidates to return
+MIN_SCORE_THRESHOLD = 4.0  # Minimum score (0-10) to show candidates. Candidates below this won't be returned even if top_k is higher
 
 # Text processing configuration
 MIN_RESUME_LENGTH = 50  # Minimum character length for a valid resume
