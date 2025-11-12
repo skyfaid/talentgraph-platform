@@ -27,18 +27,25 @@ except ImportError:
 
 # Page configuration
 st.set_page_config(
-    page_title="CV Ranking System",
-    page_icon="🎯",
+    page_title="TalentGraph - AI Recruitment Platform",
+    page_icon="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='grad' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' style='stop-color:%2314b8a6'/><stop offset='100%' style='stop-color:%230d9488'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='url(%23grad)'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-weight='bold'>T</text></svg>",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for professional light mode
+# Custom CSS for professional turquoise/teal theme
 st.markdown("""
     <style>
-    /* Main theme - Light mode */
+    /* Import modern font similar to the design */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    
+    /* Main theme */
+    * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    }
+    
     .stApp {
-        background-color: #ffffff;
+        background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 50%, #e0f2fe 100%);
         color: #1f2937;
     }
     
@@ -47,23 +54,26 @@ st.markdown("""
         color: #1f2937 !important;
     }
     
-    /* Headers */
+    /* Headers with brand colors */
     h1 {
-        color: #1f2937 !important;
+        color: #14b8a6 !important;
         font-weight: 700;
         margin-bottom: 0.5rem;
+        letter-spacing: -0.5px;
     }
     
     h2 {
-        color: #374151 !important;
+        color: #0d9488 !important;
         font-weight: 600;
         margin-top: 1.5rem;
         margin-bottom: 0.75rem;
+        letter-spacing: -0.3px;
     }
     
     h3 {
-        color: #4b5563 !important;
+        color: #0f766e !important;
         font-weight: 600;
+        letter-spacing: -0.2px;
     }
     
     /* Streamlit text elements */
@@ -71,7 +81,7 @@ st.markdown("""
         color: #1f2937 !important;
     }
     
-    /* Sidebar text - keep white */
+    /* Sidebar text - white on teal */
     [data-testid="stSidebar"], 
     [data-testid="stSidebar"] p, 
     [data-testid="stSidebar"] div, 
@@ -90,13 +100,14 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* Sidebar background - dark */
+    /* Sidebar background - teal gradient */
     [data-testid="stSidebar"] {
-        background-color: #1f2937 !important;
+        background: linear-gradient(180deg, #14b8a6 0%, #0d9488 100%);
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
     }
     
     .css-1d391kg {
-        background-color: #1f2937 !important;
+        background: linear-gradient(180deg, #14b8a6 0%, #0d9488 100%);
     }
     
     /* Input labels - dark for main, white for sidebar */
@@ -164,20 +175,27 @@ st.markdown("""
         background-color: #1f2937 !important;
     }
     
-    /* Buttons */
+    /* Buttons - Teal theme */
     .stButton > button {
-        background-color: #3b82f6;
+        background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
         color: white;
-        border-radius: 6px;
-        padding: 0.5rem 1.5rem;
-        font-weight: 500;
+        border-radius: 8px;
+        padding: 0.65rem 1.75rem;
+        font-weight: 600;
         border: none;
         transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(20, 184, 166, 0.3);
+        letter-spacing: 0.3px;
     }
     
     .stButton > button:hover {
-        background-color: #2563eb;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+        box-shadow: 0 4px 12px rgba(20, 184, 166, 0.4);
+        transform: translateY(-1px);
+    }
+    
+    .stButton > button:active {
+        transform: translateY(0px);
     }
     
     /* Text inputs - dark background with white text */
@@ -207,29 +225,32 @@ st.markdown("""
         border-radius: 6px;
     }
     
-    /* Cards/Metrics */
+    /* Cards/Metrics - Modern design */
     .metric-card {
-        background-color: #f9fafb;
-        padding: 1rem;
-        border-radius: 8px;
-        border: 1px solid #e5e7eb;
+        background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
+        padding: 1.25rem;
+        border-radius: 12px;
+        border: 1px solid #99f6e4;
         margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(20, 184, 166, 0.08);
     }
     
     /* Candidate cards */
     .candidate-card {
-        background-color: #ffffff;
-        padding: 1.5rem;
-        border-radius: 8px;
-        border: 1px solid #e5e7eb;
-        margin-bottom: 1rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        transition: box-shadow 0.3s;
+        background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
+        padding: 1.75rem;
+        border-radius: 12px;
+        border: 1px solid #99f6e4;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 10px rgba(20, 184, 166, 0.12);
+        transition: all 0.3s ease;
         color: #1f2937 !important;
     }
     
     .candidate-card:hover {
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 6px 20px rgba(20, 184, 166, 0.2);
+        transform: translateY(-2px);
+        border-color: #5eead4;
     }
     
     .candidate-card p, .candidate-card div, .candidate-card span {
@@ -273,52 +294,146 @@ st.markdown("""
         border-color: #e5e7eb;
     }
     
-    /* Score badges */
+    /* Score badges - Modern with teal theme */
     .score-badge {
         display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-weight: 600;
-        font-size: 0.875rem;
+        padding: 0.35rem 0.9rem;
+        border-radius: 16px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        letter-spacing: 0.3px;
     }
     
     .score-high {
-        background-color: #d1fae5;
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
         color: #065f46;
+        border: 2px solid #6ee7b7;
     }
     
     .score-medium {
-        background-color: #fef3c7;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
         color: #92400e;
+        border: 2px solid #fcd34d;
     }
     
     .score-low {
-        background-color: #fee2e2;
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
         color: #991b1b;
+        border: 2px solid #fca5a5;
     }
     
-    /* Info boxes */
+    /* Info boxes - Teal theme */
     .stInfo {
-        background-color: #eff6ff;
-        border-left: 4px solid #3b82f6;
+        background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+        border-left: 4px solid #14b8a6;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(20, 184, 166, 0.1);
     }
     
     /* Success messages */
     .stSuccess {
-        background-color: #f0fdf4;
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
         border-left: 4px solid #10b981;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.1);
+    }
+    
+    /* Warning messages */
+    .stWarning {
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        border-left: 4px solid #f59e0b;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(245, 158, 11, 0.1);
     }
     
     /* Error messages */
     .stError {
-        background-color: #fef2f2;
+        background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
         border-left: 4px solid #ef4444;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(239, 68, 68, 0.1);
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 100%);
+        border-radius: 8px;
+        border: 1px solid #99f6e4;
+        font-weight: 600;
+        padding: 0.75rem 1rem;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        background: linear-gradient(135deg, #ccfbf1 0%, #f0fdfa 100%);
+        border-color: #5eead4;
+    }
+    
+    /* Spinner */
+    .stSpinner > div {
+        border-top-color: #14b8a6 !important;
+    }
+    
+    /* Progress bar */
+    .stProgress > div > div > div {
+        background: linear-gradient(90deg, #14b8a6 0%, #0d9488 100%);
+    }
+    
+    /* Metrics */
+    [data-testid="stMetricValue"] {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #14b8a6;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        font-weight: 600;
+        color: #64748b !important;
+        font-size: 0.9rem;
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
+        border-radius: 8px;
+        border: 1px solid #99f6e4;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+        color: white !important;
+        border-color: #14b8a6;
     }
     
     /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #f0fdfa;
+        border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+        border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -446,8 +561,8 @@ def start_interview_flow(candidate: Dict, job_description: str, index: int = 1):
     
     # Show interview setup section prominently
     st.markdown("---")
-    st.markdown("## 🎤 Interview Setup")
-    st.success(f"✅ Interview setup for: **{candidate_name}** ({candidate_email})")
+    st.markdown("## Interview Setup")
+    st.success(f"Interview setup for: **{candidate_name}** ({candidate_email})")
     st.info("Select the number of questions below and click 'Start Interview Session' to begin.")
     
     # Question count selection (5, 7, or 10 questions)
@@ -462,7 +577,7 @@ def start_interview_flow(candidate: Dict, job_description: str, index: int = 1):
     # Start interview button
     col_btn1, col_btn2 = st.columns([1, 4])
     with col_btn1:
-        start_btn_clicked = st.button("🚀 Start Interview Session", key=f"confirm_interview_{unique_key}", type="primary", use_container_width=True)
+        start_btn_clicked = st.button("Start Interview Session", key=f"confirm_interview_{unique_key}", type="primary", use_container_width=True)
     
     if start_btn_clicked:
         with st.spinner("🔄 Creating interview session and generating questions..."):
@@ -489,13 +604,13 @@ def start_interview_flow(candidate: Dict, job_description: str, index: int = 1):
                 session_id = result.get("session_id")
                 st.session_state[f"interview_session_{unique_key}"] = session_id
                 st.session_state[f"interview_active_{unique_key}"] = True
-                st.success(f"✅ Interview session created! {result.get('message', '')}")
+                st.success(f"Interview session created! {result.get('message', '')}")
                 # Clear the start flag
                 st.session_state[f"start_interview_{candidate_id}_{index}"] = False
                 st.rerun()
                 
             except requests.exceptions.RequestException as e:
-                st.error(f"❌ Failed to start interview: {e}")
+                st.error(f"Failed to start interview: {e}")
                 if hasattr(e, 'response') and e.response is not None:
                     try:
                         error_detail = e.response.json()
@@ -514,7 +629,7 @@ def start_interview_flow(candidate: Dict, job_description: str, index: int = 1):
     
     # Add button to close interview setup (if not started yet)
     if not st.session_state.get(f"interview_active_{unique_key}", False):
-        if st.button("❌ Cancel Interview", key=f"cancel_interview_{unique_key}"):
+        if st.button("Cancel Interview", key=f"cancel_interview_{unique_key}"):
             # Clear interview state
             if st.session_state.get("active_interview_key") == unique_key:
                 st.session_state["active_interview_key"] = None
@@ -535,7 +650,7 @@ def show_interview_interface(session_id: str, candidate_id: str):
         status = status_response.json()
         
         st.markdown("---")
-        st.subheader("📝 Interview in Progress")
+        st.subheader("Interview in Progress")
         
         # Show progress
         total_q = status.get("total_questions", 0)
@@ -860,10 +975,10 @@ def show_interview_interface(session_id: str, candidate_id: str):
                 st.error(f"❌ Failed to get question: {e}")
         else:
             # Interview completed
-            st.success("🎉 Interview Completed!")
+            st.success("Interview Completed!")
             
             # Get final report
-            if st.button("📊 View Full Report", key=f"report_{session_id}"):
+            if st.button("View Full Report", key=f"report_{session_id}"):
                 try:
                     report_response = requests.get(
                         f"{current_api_url}/interview/{session_id}/report",
@@ -907,7 +1022,7 @@ def show_interview_interface(session_id: str, candidate_id: str):
                     st.error(f"❌ Failed to get report: {e}")
             
             # Reset interview state
-            if st.button("🔄 Start New Interview", key=f"reset_{session_id}"):
+            if st.button("Start New Interview", key=f"reset_{session_id}"):
                 # Find and clear all interview states for this session
                 for key in list(st.session_state.keys()):
                     if key.startswith(f"interview_active_") or key.startswith(f"interview_session_"):
@@ -969,7 +1084,7 @@ def display_candidate(candidate: Dict, index: int, job_description: str = ""):
         
         # Interview button - use index to ensure unique key
         button_key = f"interview_btn_{candidate_id}_{index}"
-        button_clicked = st.button("🎤 Start Interview", key=button_key, use_container_width=True)
+        button_clicked = st.button("Start Interview", key=button_key, use_container_width=True)
         
         if button_clicked:
             # Store candidate data and set interview state immediately
@@ -1090,14 +1205,36 @@ def display_candidate(candidate: Dict, index: int, job_description: str = ""):
 
 def main():
     """Main Streamlit app."""
-    # Header
-    st.title("🎯 CV Ranking System")
-    st.markdown("**AI-Powered Candidate Ranking with Explainable AI**")
-    st.markdown("---")
+    # Professional Header with Clean Design
+    st.markdown("""
+        <div style="position: relative; padding: 3rem 0 2rem 0; margin-bottom: 3rem; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 50%, #0f766e 100%); opacity: 0.05; border-radius: 16px;"></div>
+            <div style="position: relative; z-index: 1;">
+                <h1 style="margin: 0; font-size: 3.8rem; font-weight: 800; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -2.5px; line-height: 1.1;">
+                    TalentGraph
+                </h1>
+                <p style="margin: 0.75rem 0 0 0; font-size: 1.15rem; color: #64748b; font-weight: 500; letter-spacing: 0.5px;">
+                    Enterprise Candidate Ranking Platform
+                </p>
+                <div style="width: 80px; height: 4px; background: linear-gradient(90deg, #14b8a6 0%, #0d9488 100%); border-radius: 2px; margin-top: 1rem;"></div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     
     # Sidebar
     with st.sidebar:
-        st.header("⚙️ Configuration")
+        # Sidebar Header - Clean Professional Design
+        st.markdown("""
+            <div style="text-align: center; padding: 2rem 0 1.5rem 0;">
+                <h2 style="color: white !important; margin: 0; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.8px;">TalentGraph</h2>
+                <div style="width: 40px; height: 3px; background: rgba(255,255,255,0.5); border-radius: 2px; margin: 0.75rem auto;"></div>
+                <p style="color: rgba(255,255,255,0.85) !important; font-size: 0.85rem; margin-top: 0.5rem; font-weight: 500;">Enterprise Recruitment</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        st.header("Configuration")
         
         # Connection method
         if USE_DIRECT_SERVICE:
@@ -1121,12 +1258,12 @@ def main():
         st.divider()
         
         # Info
-        st.subheader("ℹ️ About")
+        st.subheader("System Info")
         st.markdown("""
-        This system uses:
-        - **Semantic Search** (30%)
-        - **LLM Evaluation** (70%)
-        - **XAI Explanations** (SHAP + LIME)
+        **Algorithm Weights:**
+        - Semantic Search: 30%
+        - LLM Evaluation: 70%
+        - XAI: SHAP + LIME
         """)
         
         if USE_DIRECT_SERVICE:
@@ -1137,16 +1274,30 @@ def main():
                     st.metric("Total Resumes", total_resumes)
     
     # Main content
-    # Job description input
-    st.subheader("📝 Job Description")
+    # Job description input with enhanced styling
+    st.markdown("""
+        <div style='position: relative; padding: 1.5rem; border-radius: 12px; border: 2px solid #99f6e4; margin-bottom: 2rem; background: white; overflow: hidden;'>
+            <div style='position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(20,184,166,0.03) 0%, rgba(255,255,255,0) 100%);'></div>
+            <div style='position: relative; z-index: 1;'>
+                <h2 style='color: #0d9488 !important; margin: 0 0 0.5rem 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px;'>
+                    Job Description
+                </h2>
+                <p style='color: #64748b !important; margin: 0; font-size: 0.9rem;'>
+                    Describe the role, required skills, and candidate qualifications
+                </p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
     # Use stored job description if available, otherwise use empty string
     default_job_desc = st.session_state.get("last_job_description", "")
     job_description = st.text_area(
-        "Enter the job description to rank candidates against:",
+        "Enter the complete job description:",
         value=default_job_desc,
-        height=150,
-        placeholder="Example: Senior Data Engineer with Python, SQL, AWS; 5+ years experience; leadership skills a plus.",
-        help="Provide a detailed job description including required skills, experience level, and any other relevant requirements."
+        height=180,
+        placeholder="Example: Senior Data Engineer with 5+ years experience. Must have: Python, SQL, AWS, Big Data. Nice to have: Spark, Machine Learning, Leadership skills.",
+        help="Provide a detailed job description including required skills, experience level, responsibilities, and any other relevant requirements.",
+        label_visibility="collapsed"
     )
     
     # Check for interview button clicks FIRST (works even after ranking)
@@ -1187,14 +1338,14 @@ def main():
         
         if active_candidate:
             st.markdown("---")
-            st.markdown("## 🎤 Interview Setup")
+            st.markdown("## Interview Setup")
             start_interview_flow(active_candidate, active_job, active_idx)
             st.divider()
     
     # Rank button
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        rank_button = st.button("🚀 Rank Candidates", type="primary", use_container_width=True)
+        rank_button = st.button("Rank Candidates", type="primary", use_container_width=True)
     
     # Check if we have stored candidates to display (persists across reruns)
     stored_candidates = st.session_state.get("ranked_candidates", [])
@@ -1236,23 +1387,65 @@ def main():
     
     # Display stored candidates if they exist (even after reruns)
     if stored_candidates:
-        # Summary metrics
-        st.subheader("📊 Summary")
+        # Enhanced Summary metrics section
+        st.markdown("""
+            <div style='position: relative; padding: 1.5rem; border-radius: 12px; border: 2px solid #99f6e4; margin: 2rem 0; background: white; overflow: hidden;'>
+                <div style='position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(20,184,166,0.03) 0%, rgba(255,255,255,0) 100%);'></div>
+                <div style='position: relative; z-index: 1;'>
+                    <h2 style='color: #0d9488 !important; margin: 0 0 1rem 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px;'>
+                        Ranking Summary
+                    </h2>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        
         avg_score = sum(c['final_score'] for c in stored_candidates) / len(stored_candidates) if stored_candidates else 0
         max_score = max((c['final_score'] for c in stored_candidates), default=0)
         min_score = min((c['final_score'] for c in stored_candidates), default=0)
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Average Score", f"{avg_score:.2f}")
+            st.markdown(f"""
+                <div style='background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%); 
+                            padding: 1.25rem; border-radius: 12px; border: 2px solid #99f6e4; 
+                            text-align: center; box-shadow: 0 2px 8px rgba(20, 184, 166, 0.12);'>
+                    <div style='font-size: 0.8rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;'>AVERAGE SCORE</div>
+                    <div style='font-size: 2rem; font-weight: 800; color: #14b8a6;'>{avg_score:.2f}</div>
+                    <div style='font-size: 0.7rem; color: #94a3b8; margin-top: 0.25rem;'>out of 10</div>
+                </div>
+            """, unsafe_allow_html=True)
         with col2:
-            st.metric("Highest Score", f"{max_score:.2f}")
+            st.markdown(f"""
+                <div style='background: linear-gradient(135deg, #ffffff 0%, #d1fae5 100%); 
+                            padding: 1.25rem; border-radius: 12px; border: 2px solid #6ee7b7; 
+                            text-align: center; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12);'>
+                    <div style='font-size: 0.8rem; color: #065f46; font-weight: 600; margin-bottom: 0.5rem;'>HIGHEST SCORE</div>
+                    <div style='font-size: 2rem; font-weight: 800; color: #10b981;'>{max_score:.2f}</div>
+                    <div style='font-size: 0.7rem; color: #059669; margin-top: 0.25rem;'>top candidate</div>
+                </div>
+            """, unsafe_allow_html=True)
         with col3:
-            st.metric("Lowest Score", f"{min_score:.2f}")
+            st.markdown(f"""
+                <div style='background: linear-gradient(135deg, #ffffff 0%, #fef3c7 100%); 
+                            padding: 1.25rem; border-radius: 12px; border: 2px solid #fcd34d; 
+                            text-align: center; box-shadow: 0 2px 8px rgba(251, 191, 36, 0.12);'>
+                    <div style='font-size: 0.8rem; color: #92400e; font-weight: 600; margin-bottom: 0.5rem;'>LOWEST SCORE</div>
+                    <div style='font-size: 2rem; font-weight: 800; color: #f59e0b;'>{min_score:.2f}</div>
+                    <div style='font-size: 0.7rem; color: #d97706; margin-top: 0.25rem;'>threshold</div>
+                </div>
+            """, unsafe_allow_html=True)
         with col4:
-            st.metric("Candidates", len(stored_candidates))
+            st.markdown(f"""
+                <div style='background: linear-gradient(135deg, #ffffff 0%, #e0f2fe 100%); 
+                            padding: 1.25rem; border-radius: 12px; border: 2px solid #7dd3fc; 
+                            text-align: center; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.12);'>
+                    <div style='font-size: 0.8rem; color: #075985; font-weight: 600; margin-bottom: 0.5rem;'>CANDIDATES</div>
+                    <div style='font-size: 2rem; font-weight: 800; color: #0ea5e9;'>{len(stored_candidates)}</div>
+                    <div style='font-size: 0.7rem; color: #0284c7; margin-top: 0.25rem;'>ranked</div>
+                </div>
+            """, unsafe_allow_html=True)
         
-        st.divider()
+        st.markdown("<br>", unsafe_allow_html=True)
         
         # Check all candidates for interview button clicks
         for idx, candidate in enumerate(stored_candidates, 1):
@@ -1273,20 +1466,28 @@ def main():
         
         # Display candidates
         if not st.session_state.get("active_interview_key"):
-            st.subheader("👥 Ranked Candidates")
+            st.subheader("Ranked Candidates")
         else:
-            st.markdown("### 👥 Ranked Candidates (Scroll down)")
+            st.markdown("### Ranked Candidates (Scroll down)")
         for idx, candidate in enumerate(stored_candidates, 1):
             display_candidate(candidate, idx, job_description=stored_job_desc)
     
-    # Footer
+    # Professional Footer
     st.markdown("---")
-    st.markdown(
-        "<div style='text-align: center; color: #4b5563 !important; font-size: 0.875rem;'>"
-        "CV Ranking System | Powered by AI & Explainable AI"
-        "</div>",
-        unsafe_allow_html=True
-    )
+    st.markdown("""
+        <div style='text-align: center; padding: 2.5rem 0 1.5rem 0; color: #64748b !important;'>
+            <div style='font-size: 1.4rem; font-weight: 700; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.75rem; letter-spacing: -0.5px;'>
+                TalentGraph
+            </div>
+            <div style='width: 50px; height: 3px; background: linear-gradient(90deg, #14b8a6 0%, #0d9488 100%); border-radius: 2px; margin: 0 auto 1rem auto;'></div>
+            <div style='font-size: 0.9rem; color: #64748b !important; font-weight: 500;'>
+                Enterprise Recruitment Platform
+            </div>
+            <div style='font-size: 0.75rem; color: #94a3b8 !important; margin-top: 0.75rem;'>
+                © 2025 TalentGraph. Powered by Advanced ML & NLP
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
