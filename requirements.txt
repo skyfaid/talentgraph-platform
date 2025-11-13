@@ -1,0 +1,20 @@
+# requirements.txt
+
+# --- Core ---
+pandas>=2.2.2
+numpy>=1.24.3
+scikit-learn>=1.3.0
+
+# --- Visualization ---
+plotly>=5.15.0
+streamlit>=1.28.0
+
+# --- Explainability ---
+shap>=0.42.1
+lime>=0.2.0.1
+
+# --- Graph / Neo4j ---
+py2neo>=2021.2.4
+
+# --- Utils ---
+tqdm>=4.66.1
