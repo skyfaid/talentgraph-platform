@@ -1234,161 +1234,202 @@ def main():
         
         st.markdown("---")
         
-        st.header("Configuration")
+        # Main Navigation
+        st.header("Navigation")
+        if 'current_page' not in st.session_state:
+            st.session_state.current_page = "🎯 CV Ranking"
         
-        # Connection method
-        if USE_DIRECT_SERVICE:
-            st.success("✅ Using Direct Service")
-        else:
-            st.info("🌐 Using API Endpoint")
-            # Use session state to store API URL
-            if 'api_url' not in st.session_state:
-                st.session_state.api_url = API_URL
-            api_url_input = st.text_input("API URL", value=st.session_state.api_url)
-            if api_url_input:
-                st.session_state.api_url = api_url_input
+        page = st.radio(
+            "Select Module:",
+            ["🎯 CV Ranking", "👥 Workforce Planning"],
+            key="main_navigation",
+            index=0 if st.session_state.current_page == "🎯 CV Ranking" else 1
+        )
+        st.session_state.current_page = page
         
-        st.divider()
+        st.markdown("---")
         
-        # Settings
-        st.subheader("Ranking Settings")
-        top_k = st.slider("Number of Top Candidates", 1, 20, 5)
-        include_explanations = st.checkbox("Include XAI Explanations", value=False)
-        
-        st.divider()
-        
-        # Info
-        st.subheader("System Info")
-        st.markdown("""
-        **Algorithm Weights:**
-        - Semantic Search: 30%
-        - LLM Evaluation: 70%
-        - XAI: SHAP + LIME
-        """)
-        
-        if USE_DIRECT_SERVICE:
-            service = get_service_instance()
-            if service:
-                total_resumes = service.get_total_resumes()
-                if total_resumes:
-                    st.metric("Total Resumes", total_resumes)
-    
-    # Main content
-    # Job description input with enhanced styling
-    st.markdown("""
-        <div style='position: relative; padding: 1.5rem; border-radius: 12px; border: 2px solid #99f6e4; margin-bottom: 2rem; background: white; overflow: hidden;'>
-            <div style='position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(20,184,166,0.03) 0%, rgba(255,255,255,0) 100%);'></div>
-            <div style='position: relative; z-index: 1;'>
-                <h2 style='color: #0d9488 !important; margin: 0 0 0.5rem 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px;'>
-                    Job Description
-                </h2>
-                <p style='color: #64748b !important; margin: 0; font-size: 0.9rem;'>
-                    Describe the role, required skills, and candidate qualifications
-                </p>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # Use stored job description if available, otherwise use empty string
-    default_job_desc = st.session_state.get("last_job_description", "")
-    job_description = st.text_area(
-        "Enter the complete job description:",
-        value=default_job_desc,
-        height=180,
-        placeholder="Example: Senior Data Engineer with 5+ years experience. Must have: Python, SQL, AWS, Big Data. Nice to have: Spark, Machine Learning, Leadership skills.",
-        help="Provide a detailed job description including required skills, experience level, responsibilities, and any other relevant requirements.",
-        label_visibility="collapsed"
-    )
-    
-    # Check for interview button clicks FIRST (works even after ranking)
-    # This ensures interview flow appears when button is clicked
-    candidates_list = []
-    current_job_desc = job_description
-    
-    # Check if any interview button was clicked (from previously ranked candidates)
-    for key in list(st.session_state.keys()):
-        if key.startswith("start_interview_") and st.session_state.get(key, False):
-            # Extract candidate_id and index from key
-            parts = key.replace("start_interview_", "").rsplit("_", 1)
-            if len(parts) == 2:
-                candidate_id_part = parts[0]
-                idx_part = parts[1]
-                try:
-                    idx = int(idx_part)
-                    # Set persistent interview state
-                    unique_key = f"{candidate_id_part}_{idx}"
-                    # Try to get candidate from stored results or session state
-                    stored_candidate = st.session_state.get(f"candidate_data_{unique_key}")
-                    if stored_candidate:
-                        st.session_state["active_interview_key"] = unique_key
-                        st.session_state["active_interview_candidate"] = stored_candidate
-                        st.session_state["active_interview_index"] = idx
-                        st.session_state["active_interview_job_desc"] = st.session_state.get("last_job_description", job_description)
-                        st.session_state[key] = False
-                        st.rerun()
-                except:
-                    pass
-    
-    # Show active interview if it exists (BEFORE ranking section)
-    active_interview_key = st.session_state.get("active_interview_key")
-    if active_interview_key:
-        active_candidate = st.session_state.get("active_interview_candidate")
-        active_idx = st.session_state.get("active_interview_index", 1)
-        active_job = st.session_state.get("active_interview_job_desc", job_description)
-        
-        if active_candidate:
-            st.markdown("---")
-            st.markdown("## Interview Setup")
-            start_interview_flow(active_candidate, active_job, active_idx)
+        # Configuration section - only show for CV Ranking
+        if page == "🎯 CV Ranking":
+            st.header("Configuration")
+            
+            # Connection method
+            if USE_DIRECT_SERVICE:
+                st.success("✅ Using Direct Service")
+            else:
+                st.info("🌐 Using API Endpoint")
+                # Use session state to store API URL
+                if 'api_url' not in st.session_state:
+                    st.session_state.api_url = API_URL
+                api_url_input = st.text_input("API URL", value=st.session_state.api_url)
+                if api_url_input:
+                    st.session_state.api_url = api_url_input
+            
             st.divider()
-    
-    # Rank button
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        rank_button = st.button("Rank Candidates", type="primary", use_container_width=True)
-    
-    # Check if we have stored candidates to display (persists across reruns)
-    stored_candidates = st.session_state.get("ranked_candidates", [])
-    stored_job_desc = st.session_state.get("last_job_description", "")
-    
-    # Results section
-    if rank_button:
-        if not job_description.strip():
-            st.warning("⚠️ Please enter a job description before ranking.")
+            
+            # Settings
+            st.subheader("Ranking Settings")
+            top_k = st.slider("Number of Top Candidates", 1, 20, 5)
+            include_explanations = st.checkbox("Include XAI Explanations", value=False)
+            
+            st.divider()
+            
+            # Info
+            st.subheader("System Info")
+            st.markdown("""
+            **Algorithm Weights:**
+            - Semantic Search: 30%
+            - LLM Evaluation: 70%
+            - XAI: SHAP + LIME
+            """)
+            
+            if USE_DIRECT_SERVICE:
+                service = get_service_instance()
+                if service:
+                    total_resumes = service.get_total_resumes()
+                    if total_resumes:
+                        st.metric("Total Resumes", total_resumes)
         else:
-            with st.spinner("🔄 Ranking candidates... This may take a moment."):
-                # Rank candidates
-                if USE_DIRECT_SERVICE:
-                    results = rank_via_service(job_description, top_k, include_explanations)
-                else:
-                    # Get current API URL from session state or use default
-                    current_api_url = st.session_state.get('api_url', API_URL)
-                    results = rank_via_api(job_description, top_k, include_explanations, current_api_url)
-                
-                if results:
-                    num_shown = len(results['candidates'])
-                    num_requested = results.get('top_k', top_k)
-                    
-                    if num_shown < num_requested:
-                        st.warning(
-                            f"⚠️ Requested {num_requested} candidates, but only {num_shown} met the minimum quality threshold (4.0/10). "
-                            f"Low-scoring candidates were filtered out to avoid showing poor matches."
-                        )
-                    else:
-                        st.success(f"✅ Found {results['total_candidates_evaluated']} candidates, showing top {num_shown}")
-                    
-                    # Store results in session state for persistence
-                    st.session_state["ranked_candidates"] = results['candidates']
-                    st.session_state["last_job_description"] = job_description
-                    stored_candidates = results['candidates']
-                    stored_job_desc = job_description
-                else:
-                    st.error("❌ Failed to rank candidates. Please check your configuration.")
+            # Workforce Planning info
+            st.header("Workforce Planning")
+            st.info("""
+            **Features:**
+            - 📊 Data Overview
+            - 🎯 Career Path Recommendations
+            - 🔍 Skills Market Analysis
+            - 🤝 Internal Talent Mobility
+            """)
     
-    # Display stored candidates if they exist (even after reruns)
-    if stored_candidates:
-        # Enhanced Summary metrics section
+    # Main content - Conditional rendering based on selected page
+    if page == "👥 Workforce Planning":
+        # Import and show workforce planning
+        try:
+            from src.workforce import show_workforce_planning
+            show_workforce_planning()
+        except ImportError as e:
+            st.error(f"❌ Failed to import workforce planning module: {e}")
+            st.info("Please ensure all dependencies are installed and the module is properly configured.")
+        except Exception as e:
+            st.error(f"❌ Error loading workforce planning: {e}")
+            import traceback
+            st.code(traceback.format_exc())
+    else:
+        # CV Ranking Module (existing code)
+        # Job description input with enhanced styling
         st.markdown("""
+            <div style='position: relative; padding: 1.5rem; border-radius: 12px; border: 2px solid #99f6e4; margin-bottom: 2rem; background: white; overflow: hidden;'>
+                <div style='position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(20,184,166,0.03) 0%, rgba(255,255,255,0) 100%);'></div>
+                <div style='position: relative; z-index: 1;'>
+                    <h2 style='color: #0d9488 !important; margin: 0 0 0.5rem 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px;'>
+                        Job Description
+                    </h2>
+                    <p style='color: #64748b !important; margin: 0; font-size: 0.9rem;'>
+                        Describe the role, required skills, and candidate qualifications
+                    </p>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+    
+        # Use stored job description if available, otherwise use empty string
+        default_job_desc = st.session_state.get("last_job_description", "")
+        job_description = st.text_area(
+            "Enter the complete job description:",
+            value=default_job_desc,
+            height=180,
+            placeholder="Example: Senior Data Engineer with 5+ years experience. Must have: Python, SQL, AWS, Big Data. Nice to have: Spark, Machine Learning, Leadership skills.",
+            help="Provide a detailed job description including required skills, experience level, responsibilities, and any other relevant requirements.",
+            label_visibility="collapsed"
+        )
+    
+        # Check for interview button clicks FIRST (works even after ranking)
+        # This ensures interview flow appears when button is clicked
+        candidates_list = []
+        current_job_desc = job_description
+        
+        # Check if any interview button was clicked (from previously ranked candidates)
+        for key in list(st.session_state.keys()):
+            if key.startswith("start_interview_") and st.session_state.get(key, False):
+                # Extract candidate_id and index from key
+                parts = key.replace("start_interview_", "").rsplit("_", 1)
+                if len(parts) == 2:
+                    candidate_id_part = parts[0]
+                    idx_part = parts[1]
+                    try:
+                        idx = int(idx_part)
+                        # Set persistent interview state
+                        unique_key = f"{candidate_id_part}_{idx}"
+                        # Try to get candidate from stored results or session state
+                        stored_candidate = st.session_state.get(f"candidate_data_{unique_key}")
+                        if stored_candidate:
+                            st.session_state["active_interview_key"] = unique_key
+                            st.session_state["active_interview_candidate"] = stored_candidate
+                            st.session_state["active_interview_index"] = idx
+                            st.session_state["active_interview_job_desc"] = st.session_state.get("last_job_description", job_description)
+                            st.session_state[key] = False
+                            st.rerun()
+                    except:
+                        pass
+        
+        # Show active interview if it exists (BEFORE ranking section)
+        active_interview_key = st.session_state.get("active_interview_key")
+        if active_interview_key:
+            active_candidate = st.session_state.get("active_interview_candidate")
+            active_idx = st.session_state.get("active_interview_index", 1)
+            active_job = st.session_state.get("active_interview_job_desc", job_description)
+            
+            if active_candidate:
+                st.markdown("---")
+                st.markdown("## Interview Setup")
+                start_interview_flow(active_candidate, active_job, active_idx)
+                st.divider()
+        
+        # Rank button
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            rank_button = st.button("Rank Candidates", type="primary", use_container_width=True)
+        
+        # Check if we have stored candidates to display (persists across reruns)
+        stored_candidates = st.session_state.get("ranked_candidates", [])
+        stored_job_desc = st.session_state.get("last_job_description", "")
+        
+        # Results section
+        if rank_button:
+            if not job_description.strip():
+                st.warning("⚠️ Please enter a job description before ranking.")
+            else:
+                with st.spinner("🔄 Ranking candidates... This may take a moment."):
+                    # Rank candidates
+                    if USE_DIRECT_SERVICE:
+                        results = rank_via_service(job_description, top_k, include_explanations)
+                    else:
+                        # Get current API URL from session state or use default
+                        current_api_url = st.session_state.get('api_url', API_URL)
+                        results = rank_via_api(job_description, top_k, include_explanations, current_api_url)
+                    
+                    if results:
+                        num_shown = len(results['candidates'])
+                        num_requested = results.get('top_k', top_k)
+                        
+                        if num_shown < num_requested:
+                            st.warning(
+                                f"⚠️ Requested {num_requested} candidates, but only {num_shown} met the minimum quality threshold (4.0/10). "
+                                f"Low-scoring candidates were filtered out to avoid showing poor matches."
+                            )
+                        else:
+                            st.success(f"✅ Found {results['total_candidates_evaluated']} candidates, showing top {num_shown}")
+                        
+                        # Store results in session state for persistence
+                        st.session_state["ranked_candidates"] = results['candidates']
+                        st.session_state["last_job_description"] = job_description
+                        stored_candidates = results['candidates']
+                        stored_job_desc = job_description
+                    else:
+                        st.error("❌ Failed to rank candidates. Please check your configuration.")
+        
+        # Display stored candidates if they exist (even after reruns)
+        if stored_candidates:
+            # Enhanced Summary metrics section
+            st.markdown("""
             <div style='position: relative; padding: 1.5rem; border-radius: 12px; border: 2px solid #99f6e4; margin: 2rem 0; background: white; overflow: hidden;'>
                 <div style='position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(20,184,166,0.03) 0%, rgba(255,255,255,0) 100%);'></div>
                 <div style='position: relative; z-index: 1;'>
@@ -1397,82 +1438,82 @@ def main():
                     </h2>
                 </div>
             </div>
-        """, unsafe_allow_html=True)
-        
-        avg_score = sum(c['final_score'] for c in stored_candidates) / len(stored_candidates) if stored_candidates else 0
-        max_score = max((c['final_score'] for c in stored_candidates), default=0)
-        min_score = min((c['final_score'] for c in stored_candidates), default=0)
-        
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.markdown(f"""
-                <div style='background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%); 
-                            padding: 1.25rem; border-radius: 12px; border: 2px solid #99f6e4; 
-                            text-align: center; box-shadow: 0 2px 8px rgba(20, 184, 166, 0.12);'>
-                    <div style='font-size: 0.8rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;'>AVERAGE SCORE</div>
-                    <div style='font-size: 2rem; font-weight: 800; color: #14b8a6;'>{avg_score:.2f}</div>
-                    <div style='font-size: 0.7rem; color: #94a3b8; margin-top: 0.25rem;'>out of 10</div>
-                </div>
             """, unsafe_allow_html=True)
-        with col2:
-            st.markdown(f"""
-                <div style='background: linear-gradient(135deg, #ffffff 0%, #d1fae5 100%); 
-                            padding: 1.25rem; border-radius: 12px; border: 2px solid #6ee7b7; 
-                            text-align: center; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12);'>
-                    <div style='font-size: 0.8rem; color: #065f46; font-weight: 600; margin-bottom: 0.5rem;'>HIGHEST SCORE</div>
-                    <div style='font-size: 2rem; font-weight: 800; color: #10b981;'>{max_score:.2f}</div>
-                    <div style='font-size: 0.7rem; color: #059669; margin-top: 0.25rem;'>top candidate</div>
-                </div>
-            """, unsafe_allow_html=True)
-        with col3:
-            st.markdown(f"""
-                <div style='background: linear-gradient(135deg, #ffffff 0%, #fef3c7 100%); 
-                            padding: 1.25rem; border-radius: 12px; border: 2px solid #fcd34d; 
-                            text-align: center; box-shadow: 0 2px 8px rgba(251, 191, 36, 0.12);'>
-                    <div style='font-size: 0.8rem; color: #92400e; font-weight: 600; margin-bottom: 0.5rem;'>LOWEST SCORE</div>
-                    <div style='font-size: 2rem; font-weight: 800; color: #f59e0b;'>{min_score:.2f}</div>
-                    <div style='font-size: 0.7rem; color: #d97706; margin-top: 0.25rem;'>threshold</div>
-                </div>
-            """, unsafe_allow_html=True)
-        with col4:
-            st.markdown(f"""
-                <div style='background: linear-gradient(135deg, #ffffff 0%, #e0f2fe 100%); 
-                            padding: 1.25rem; border-radius: 12px; border: 2px solid #7dd3fc; 
-                            text-align: center; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.12);'>
-                    <div style='font-size: 0.8rem; color: #075985; font-weight: 600; margin-bottom: 0.5rem;'>CANDIDATES</div>
-                    <div style='font-size: 2rem; font-weight: 800; color: #0ea5e9;'>{len(stored_candidates)}</div>
-                    <div style='font-size: 0.7rem; color: #0284c7; margin-top: 0.25rem;'>ranked</div>
-                </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Check all candidates for interview button clicks
-        for idx, candidate in enumerate(stored_candidates, 1):
-            candidate_id = candidate.get('meta', {}).get('id', '')
-            interview_flag_key = f"start_interview_{candidate_id}_{idx}"
-            if st.session_state.get(interview_flag_key, False):
-                # Set persistent interview state
-                unique_key = f"{candidate_id}_{idx}"
-                st.session_state["active_interview_key"] = unique_key
-                st.session_state["active_interview_candidate"] = candidate
-                st.session_state["active_interview_index"] = idx
-                st.session_state["active_interview_job_desc"] = stored_job_desc
-                # Store candidate data for later retrieval
-                st.session_state[f"candidate_data_{unique_key}"] = candidate
-                # Reset the trigger flag
-                st.session_state[interview_flag_key] = False
-                st.rerun()
-        
-        # Display candidates
-        if not st.session_state.get("active_interview_key"):
-            st.subheader("Ranked Candidates")
-        else:
-            st.markdown("### Ranked Candidates (Scroll down)")
-        for idx, candidate in enumerate(stored_candidates, 1):
-            display_candidate(candidate, idx, job_description=stored_job_desc)
+            
+            avg_score = sum(c['final_score'] for c in stored_candidates) / len(stored_candidates) if stored_candidates else 0
+            max_score = max((c['final_score'] for c in stored_candidates), default=0)
+            min_score = min((c['final_score'] for c in stored_candidates), default=0)
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.markdown(f"""
+                    <div style='background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%); 
+                                padding: 1.25rem; border-radius: 12px; border: 2px solid #99f6e4; 
+                                text-align: center; box-shadow: 0 2px 8px rgba(20, 184, 166, 0.12);'>
+                        <div style='font-size: 0.8rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;'>AVERAGE SCORE</div>
+                        <div style='font-size: 2rem; font-weight: 800; color: #14b8a6;'>{avg_score:.2f}</div>
+                        <div style='font-size: 0.7rem; color: #94a3b8; margin-top: 0.25rem;'>out of 10</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"""
+                    <div style='background: linear-gradient(135deg, #ffffff 0%, #d1fae5 100%); 
+                                padding: 1.25rem; border-radius: 12px; border: 2px solid #6ee7b7; 
+                                text-align: center; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12);'>
+                        <div style='font-size: 0.8rem; color: #065f46; font-weight: 600; margin-bottom: 0.5rem;'>HIGHEST SCORE</div>
+                        <div style='font-size: 2rem; font-weight: 800; color: #10b981;'>{max_score:.2f}</div>
+                        <div style='font-size: 0.7rem; color: #059669; margin-top: 0.25rem;'>top candidate</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            with col3:
+                st.markdown(f"""
+                    <div style='background: linear-gradient(135deg, #ffffff 0%, #fef3c7 100%); 
+                                padding: 1.25rem; border-radius: 12px; border: 2px solid #fcd34d; 
+                                text-align: center; box-shadow: 0 2px 8px rgba(251, 191, 36, 0.12);'>
+                        <div style='font-size: 0.8rem; color: #92400e; font-weight: 600; margin-bottom: 0.5rem;'>LOWEST SCORE</div>
+                        <div style='font-size: 2rem; font-weight: 800; color: #f59e0b;'>{min_score:.2f}</div>
+                        <div style='font-size: 0.7rem; color: #d97706; margin-top: 0.25rem;'>threshold</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            with col4:
+                st.markdown(f"""
+                    <div style='background: linear-gradient(135deg, #ffffff 0%, #e0f2fe 100%); 
+                                padding: 1.25rem; border-radius: 12px; border: 2px solid #7dd3fc; 
+                                text-align: center; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.12);'>
+                        <div style='font-size: 0.8rem; color: #075985; font-weight: 600; margin-bottom: 0.5rem;'>CANDIDATES</div>
+                        <div style='font-size: 2rem; font-weight: 800; color: #0ea5e9;'>{len(stored_candidates)}</div>
+                        <div style='font-size: 0.7rem; color: #0284c7; margin-top: 0.25rem;'>ranked</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Check all candidates for interview button clicks
+            for idx, candidate in enumerate(stored_candidates, 1):
+                candidate_id = candidate.get('meta', {}).get('id', '')
+                interview_flag_key = f"start_interview_{candidate_id}_{idx}"
+                if st.session_state.get(interview_flag_key, False):
+                    # Set persistent interview state
+                    unique_key = f"{candidate_id}_{idx}"
+                    st.session_state["active_interview_key"] = unique_key
+                    st.session_state["active_interview_candidate"] = candidate
+                    st.session_state["active_interview_index"] = idx
+                    st.session_state["active_interview_job_desc"] = stored_job_desc
+                    # Store candidate data for later retrieval
+                    st.session_state[f"candidate_data_{unique_key}"] = candidate
+                    # Reset the trigger flag
+                    st.session_state[interview_flag_key] = False
+                    st.rerun()
+            
+            # Display candidates
+            if not st.session_state.get("active_interview_key"):
+                st.subheader("Ranked Candidates")
+            else:
+                st.markdown("### Ranked Candidates (Scroll down)")
+            for idx, candidate in enumerate(stored_candidates, 1):
+                display_candidate(candidate, idx, job_description=stored_job_desc)
     
-    # Professional Footer
+    # Professional Footer (shared across all modules)
     st.markdown("---")
     st.markdown("""
         <div style='text-align: center; padding: 2.5rem 0 1.5rem 0; color: #64748b !important;'>

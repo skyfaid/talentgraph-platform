@@ -49,7 +49,11 @@ requests
 audio-recorder-streamlit
 
 # Voice & Audio (FREE options only)
-edge-tts
-gtts
-openai-whisper
-pydub
+# edge-tts
+# gtts
+# openai-whisper
+# pydub
+
+# Workforce Planning (Neo4j & Visualization)
+py2neo>=2021.2.4
+plotly>=5.15.0

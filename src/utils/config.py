@@ -38,3 +38,8 @@ RESUME_TAIL_CHARS = 3000  # Characters to keep from end of resume for LLM
 RETRIEVER_K = 5  # Number of documents to retrieve in initial search
 RANKING_SEARCH_MULTIPLIER = 2  # Multiply top_k by this for initial search
 
+# Neo4j configuration for Workforce Planning
+NEO4J_URI = os.environ.get("NEO4J_URI", "neo4j+s://f2e325e6.databases.neo4j.io")
+NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
+NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "Tas8DQsuJnRLyWSXJpb6DH9weNBlE5rRZdG-d2NfZPs")
+
