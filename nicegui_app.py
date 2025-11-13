@@ -109,9 +109,9 @@ def video_capture_thread():
                 
                 # Update queue with frame rate limiting
                 try:
-                    # Clear old frames to prevent lag
-                    while state.video_frame_queue.qsize() >= 1:
-                        state.video_frame_queue.get_nowait()
+                    if not state.video_frame_queue.full():
+                        state.video_frame_queue.put_nowait(display_frame_rgb)
+
                     
                     state.video_frame_queue.put_nowait(display_frame_rgb)
                 except:
@@ -722,81 +722,81 @@ def create_voice_interface():
 
 
 def create_video_interface():
-    """Video mode interface with live feed"""
+    """Video mode interface with live feed (flicker-free, NiceGUI 1.4+)"""
     with ui.row().classes('w-full max-w-6xl gap-4'):
-        # Video feed column
+        # -------------------- VIDEO FEED --------------------
         with ui.card().classes('flex-1 p-4'):
             ui.label('📹 Live Video Feed').classes('text-lg font-semibold mb-2')
-            video_image = ui.image('').classes('w-full rounded border-2 max-h-96 object-cover')
-            
-            # FIX: Use a slower timer with proper error handling to prevent flashing
-            last_update_time = {'time': 0}  # Store in dict to modify in nested function
-            
+
+            # Safe HTML for the <canvas> (no script inside)
+            ui.html('''
+            <canvas id="video_canvas" width="640" height="480"
+                    style="border-radius:8px;border:2px solid #ccc;background:black;">
+            </canvas>
+            ''', sanitize=False)
+
+            # Add the JS globally to the body (NiceGUI-approved way)
+            ui.add_body_html('''
+            <script>
+            window.updateVideoFrame = (b64) => {
+              if (!b64 || b64.length < 100) return;
+              const canvas = document.getElementById('video_canvas');
+              if (!canvas) return;
+              const ctx = canvas.getContext('2d');
+              const img = new Image();
+              img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              };
+              img.src = 'data:image/jpeg;base64,' + b64;
+            };
+            </script>
+            ''')
+
+            # Update video feed smoothly
             def update_video():
                 try:
-                    current_time = time.time()
-                    
-                    # FIX: Only update every 150ms minimum (debouncing)
-                    if current_time - last_update_time['time'] < 0.15:
-                        return
-                    
                     if state.video_active and not state.video_frame_queue.empty():
                         frame = state.video_frame_queue.get_nowait()
                         if frame is not None:
-                            # Resize for consistent display
                             frame_resized = cv2.resize(frame, (640, 480))
-                            
-                            # FIX: Better JPEG encoding with error handling
-                            success, buffer = cv2.imencode(
-                                '.jpg', 
-                                frame_resized, 
-                                [cv2.IMWRITE_JPEG_QUALITY, 85]  # Higher quality
-                            )
-                            
+                            success, buffer = cv2.imencode('.jpg', frame_resized, [cv2.IMWRITE_JPEG_QUALITY, 75])
                             if success:
                                 b64 = base64.b64encode(buffer).decode()
-                                # FIX: Only update if we have valid data
-                                if len(b64) > 100:  # Sanity check
-                                    video_image.set_source(f'data:image/jpeg;base64,{b64}')
-                                    last_update_time['time'] = current_time
-                except Exception as e:
-                    # Silently ignore errors to prevent log spam
+                                ui.run_javascript(f'updateVideoFrame("{b64}")')
+                except Exception:
                     pass
-            
+
             if state.video_active:
-                # FIX: Match the slower capture rate (150ms)
-                ui.timer(0.15, update_video, active=True)
-        
-        # Emotions column
+                ui.timer(0.12, update_video, active=True)
+
+        # -------------------- EMOTION DISPLAY --------------------
         with ui.card().classes('w-80 p-4'):
             ui.label('🎭 Live Emotions').classes('text-lg font-semibold mb-4')
             emotion_container = ui.column().classes('w-full')
-            
+
             def update_emotions():
                 emotion_container.clear()
                 if state.video_active and state.interviewer.video_processor.emotion_history:
                     with emotion_container:
                         latest = state.interviewer.video_processor.emotion_history[-1]['emotions']
                         dominant = max(latest.items(), key=lambda x: x[1])
-                        
                         ui.label(f'Dominant: {dominant[0].title()}').classes('font-bold text-lg')
                         ui.label(f'{dominant[1]:.1%}').classes('text-2xl text-blue-600')
-                        
                         ui.separator().classes('my-2')
-                        
                         for emotion, score in sorted(latest.items(), key=lambda x: x[1], reverse=True)[:5]:
                             with ui.row().classes('w-full items-center gap-2'):
                                 ui.label(emotion.title()).classes('w-24')
                                 ui.linear_progress(value=score).classes('flex-1')
                                 ui.label(f'{score:.0%}').classes('w-12 text-right')
-            
+
             if state.video_active:
                 ui.timer(3.0, update_emotions, active=True)
-    
-    # Audio controls
+
+    # -------------------- AUDIO CONTROLS --------------------
     with ui.card().classes('w-full max-w-6xl p-6 mt-4'):
         status_label = ui.label('').classes('text-lg mb-4')
-        
+
         def update_status():
             if state.tts_playing:
                 status_label.text = '🔊 AI is speaking...'
@@ -810,65 +810,52 @@ def create_video_interface():
             else:
                 status_label.text = '⏳ Ready - Click "Start Recording" to begin'
                 status_label.classes('text-gray-600')
-        
+
         update_status()
-        
+
         with ui.row().classes('gap-4'):
             if state.audio_recording:
-                # Stop recording button
                 def stop_and_process():
                     stop_audio_recording()
-                    # Wait for processing
                     time.sleep(2)
                     ui.navigate.reload()
-                
-                ui.button('⏹️ Stop Recording', on_click=stop_and_process) \
-                  .props('color=negative size=lg')
-                
+                ui.button('⏹️ Stop Recording', on_click=stop_and_process).props('color=negative size=lg')
+
             elif not state.audio_recording and not state.tts_playing and state.waiting_for_answer:
-                # Start recording button
                 def start_recording():
                     start_audio_recording()
                     ui.navigate.reload()
-                
-                ui.button('🎤 Start Recording', on_click=start_recording) \
-                  .props('color=primary size=lg')
-            
+                ui.button('🎤 Start Recording', on_click=start_recording).props('color=primary size=lg')
+
             elif state.current_answer:
-                # Submit answer button
                 def submit_answer():
                     print(f"🔄 Submit button clicked - Answer: {state.current_answer[:50]}...")
                     if state.current_answer and state.current_answer.strip():
-                        # Process in thread to avoid blocking UI
                         def process_and_reload():
                             process_answer(state.current_answer, state.current_audio_path)
-                            # Small delay before reload to ensure processing completes
                             time.sleep(1)
                             ui.navigate.reload()
-                        
                         threading.Thread(target=process_and_reload, daemon=True).start()
                         ui.notify('Processing your answer...', type='info')
                     else:
                         ui.notify('No answer to submit', type='warning')
-                
-                ui.button('✅ Submit Answer', on_click=submit_answer) \
-                .props('color=positive size=lg')
-                
-                # Re-record button
+                ui.button('✅ Submit Answer', on_click=submit_answer).props('color=positive size=lg')
+
                 def rerecord():
                     state.current_answer = None
                     state.current_audio_path = None
                     start_audio_recording()
                     ui.navigate.reload()
-                
-                ui.button('🔄 Re-record', on_click=rerecord) \
-                  .props('color=secondary')
-        
+                ui.button('🔄 Re-record', on_click=rerecord).props('color=secondary')
+
         if state.question_num >= MIN_QUESTIONS:
             ui.separator().classes('my-4')
-            ui.button('🏁 End Interview', 
-                     on_click=lambda: (stop_video_recording(), complete_interview(), ui.navigate.to('/results'))) \
-              .props('color=secondary')
+            ui.button(
+                '🏁 End Interview',
+                on_click=lambda: (stop_video_recording(), complete_interview(), ui.navigate.to('/results'))
+            ).props('color=secondary')
+
+
 
 
 def create_results_page():
